@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react'
 import {
-  Activity, ArrowRight, BarChart3, Bike, CalendarDays, Check, ClipboardCheck, Dumbbell, Flower2, Layers, Link2, ListChecks,
-  Music2, Shield, Sparkles, Star, Ticket, Users, Waves, Zap,
+  Activity, ArrowRight, BarChart3, Bell, Bike, CalendarDays, Check, ClipboardCheck, Layers, Link2, ListChecks,
+  Sparkles, Star, Ticket, Users, Waves, Zap,
 } from 'lucide-react'
 import { usePlatform } from '../lib/store'
 import { homeFor } from '../lib/platform'
@@ -21,12 +21,16 @@ const FEATURES: [Icon, string, string][] = [
   [Layers, 'One login, many studios', 'Run several locations or brands from one account, and let members book across studios they love.'],
 ]
 
+/** Photo tiles for the main kinds of studio (photos: public/photos, see CREDITS.md). */
+const PHOTO_VERTICALS: [string, string, string][] = [
+  ['yoga', 'Yoga', 'Flow, hatha, hot and aerial'],
+  ['pilates', 'Pilates', 'Mat, reformer and barre'],
+  ['dance', 'Dance', 'Kids, adults and competition teams'],
+  ['martial-arts', 'Martial arts', 'Belts, grades and kids classes'],
+  ['strength', 'HIIT & strength', 'Bootcamps and small groups'],
+]
+
 const VERTICALS: [Icon, string][] = [
-  [Flower2, 'Yoga'],
-  [Layers, 'Pilates & reformer'],
-  [Music2, 'Dance'],
-  [Shield, 'Martial arts'],
-  [Dumbbell, 'HIIT & strength'],
   [Bike, 'Indoor cycling'],
   [Activity, 'Barre'],
   [Waves, 'Swim schools'],
@@ -126,6 +130,26 @@ export function Landing() {
         </div>
       </section>
 
+      <section className="land-section tint">
+        <div className="land-wrap split">
+          <div className="split-media">
+            <img className="photo" src="photos/group-class.webp" alt="A full group fitness class training together in a bright studio" loading="lazy" width="1200" height="900" />
+            <div className="card mock-float chip-a"><Users size={16} /> <span><strong>Full class</strong><span className="muted tiny block">3 people on the waitlist</span></span></div>
+            <div className="card mock-float chip-b"><Bell size={16} /> <span><strong>Spot opened</strong><span className="muted tiny block">Next on the waitlist is booked in</span></span></div>
+          </div>
+          <div className="split-copy">
+            <p className="kicker left">Fuller classes</p>
+            <h2 className="section-title left">Empty spots fill themselves.</h2>
+            <p className="lead">When someone cancels, the next person on the waitlist moves in straight away. Late cancels keep the class, so your timetable stays full without you lifting a finger.</p>
+            <ul className="split-list">
+              <li><Check size={18} /> Live spots left on every class</li>
+              <li><Check size={18} /> Automatic waitlists</li>
+              <li><Check size={18} /> Cancellation window you control</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       <section className="land-section alt" id="features">
         <div className="land-wrap">
           <p className="kicker">Everything in one place</p>
@@ -147,6 +171,14 @@ export function Landing() {
           <p className="kicker">Who it's for</p>
           <h2 className="section-title">Built for every kind of class</h2>
           <p className="section-sub muted">Start from a template for your type of studio, then make it yours.</p>
+          <div className="photo-tiles">
+            {PHOTO_VERTICALS.map(([img, label, sub]) => (
+              <a key={label} className="photo-tile" href="#/new-studio">
+                <img src={`photos/${img}.webp`} alt="" loading="lazy" width="700" height="880" />
+                <span className="photo-tile-text"><strong>{label}</strong><span>{sub}</span></span>
+              </a>
+            ))}
+          </div>
           <div className="vertical-grid">
             {VERTICALS.map(([Icon, label]) => (
               <a key={label} className="card vertical" href="#/new-studio">
@@ -159,14 +191,19 @@ export function Landing() {
       </section>
 
       <section className="land-section alt">
-        <div className="land-wrap">
-          <p className="kicker">How it works</p>
-          <h2 className="section-title">Live in three steps</h2>
-          <ol className="how">
+        <div className="land-wrap split reverse">
+          <div className="split-media">
+            <img className="photo" src="photos/calm.webp" alt="A studio owner sitting calmly on a yoga mat" loading="lazy" width="1000" height="1100" />
+          </div>
+          <div className="split-copy">
+          <p className="kicker left">How it works</p>
+          <h2 className="section-title left">Live in three steps</h2>
+          <ol className="how stacked">
             <li className="card"><span className="step">1</span><h3>Create your studio</h3><p className="muted small">Pick a template. Starter class types and packages are set up for you.</p></li>
             <li className="card"><span className="step">2</span><h3>Add your timetable</h3><p className="muted small">Schedule one-off or weekly classes with capacity, instructor and price in classes.</p></li>
             <li className="card"><span className="step">3</span><h3>Share your link</h3><p className="muted small">Members sign up, buy a package and book. You check them in and watch the reports.</p></li>
           </ol>
+          </div>
         </div>
       </section>
 
@@ -205,7 +242,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="land-cta">
+      <section className="land-cta photo-cta" style={{ backgroundImage: 'url(photos/community.webp)' }}>
         <div className="land-wrap cta-inner">
           <h2>Ready to fill your classes?</h2>
           <p>Set up your studio in a few minutes. It's free during early access.</p>
@@ -241,6 +278,7 @@ function HeroMock() {
   ]
   return (
     <div className="hero-mock" aria-hidden="true">
+      <img className="hero-photo" src="photos/hero.webp" alt="" width="1100" height="1300" fetchPriority="high" />
       <div className="card mock-window">
         <div className="mock-bar"><span /><span /><span /><strong>Today's classes</strong></div>
         <ul>
