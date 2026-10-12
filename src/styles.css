@@ -952,3 +952,11 @@ main.platform-content.narrow { max-width: 760px; }
 @media (max-width: 400px) {
   .global-search input::placeholder { color: transparent; }
 }
+
+/* ---------- No zooming ---------- */
+/* No double-tap zoom; taps also respond without the 300ms delay. */
+html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* iPhones zoom into form fields whose text is under 16px; keep fields at 16px on touch screens. */
+@media (hover: none) and (pointer: coarse) {
+  input, select, textarea, .copy-row input { font-size: 16px; }
+}
