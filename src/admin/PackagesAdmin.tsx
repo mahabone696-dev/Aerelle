@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Plus } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { groupsOf, newId, savePackageOption, savePromo, type PackageOption } from '../lib/model'
 import { money } from '../lib/format'
@@ -25,7 +26,7 @@ export function PackagesAdmin() {
             setEditing({ id: newId(), name: '', price: 0, classes: 1, validDays: 30, groups: [groupsOf(state)[0]], hidden: false, trial: false, recurring: false, description: '' })
           }
         >
-          + New package
+          <Plus size={16} /> New package
         </button>
       </header>
       {editing && <PackageForm option={editing} onDone={() => setEditing(null)} />}

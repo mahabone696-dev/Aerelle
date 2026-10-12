@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, type ComponentType } from 'react'
+import { AlertCircle, CalendarDays, Gauge, Star, Wallet } from 'lucide-react'
+import { initials } from '../ui'
 import { useStore } from '../lib/store'
 import { averageRating, spotsLeft } from '../lib/model'
 import { fmtDate, fmtTime, money, sameDay, startOfDay } from '../lib/format'
@@ -32,16 +34,17 @@ export function Overview() {
       </header>
 
       <div className="stats">
-        <Stat label="Classes today" value={String(today.length)} />
-        <Stat label="Booked next 7 days" value={seats ? `${Math.round((filled / seats) * 100)}%` : '–'} hint={`${filled} of ${seats} spots`} />
-        <Stat label="Sales last 7 days" value={money(cur, weekOrders.reduce((n, o) => n + o.net, 0))} hint={`${weekOrders.length} orders`} />
+        <Stat icon={CalendarDays} label="Classes today" value={String(today.length)} hint={`${today.reduce((n, s) => n + s.capacity - spotsLeft(state, s), 0)} members booked`} />
+        <Stat icon={Gauge} label="Booked next 7 days" value={seats ? `${Math.round((filled / seats) * 100)}%` : '–'} hint={`${filled} of ${seats} spots`} />
+        <Stat icon={Wallet} label="Sales last 7 days" value={money(cur, weekOrders.reduce((n, o) => n + o.net, 0))} hint={`${weekOrders.length} orders`} />
         <Stat
+          icon={AlertCircle}
           label="Unpaid"
           value={money(cur, unpaid.reduce((n, o) => n + o.net, 0))}
           hint={`${unpaid.length} packages`}
           onClick={unpaid.length ? () => navigate('/members?tab=unpaid') : undefined}
         />
-        <Stat label="Rating" value={rating ? `★ ${rating.average.toFixed(2)}` : '–'} hint={rating ? `${rating.count} reviews` : ''} onClick={() => navigate('/rating')} />
+        <Stat icon={Star} label="Rating" value={rating ? `★ ${rating.average.toFixed(2)}` : '–'} hint={rating ? `${rating.count} reviews` : ''} onClick={() => navigate('/rating')} />
       </div>
 
       <h2>Classes today · check-in</h2>
@@ -75,9 +78,12 @@ export function Overview() {
       <ul className="rows">
         {recent.map((o) => (
           <li key={o.id} className="card row">
-            <div>
-              <strong>{name(o.userId)}</strong>
-              <p className="muted small">{o.name} · {fmtDate(o.createdAt)} · {o.source}</p>
+            <div className="who">
+              <span className="avatar">{initials(name(o.userId))}</span>
+              <div>
+                <strong>{name(o.userId)}</strong>
+                <p className="muted small">{o.name} · {fmtDate(o.createdAt)} · {o.source}</p>
+              </div>
             </div>
             <span className={`badge ${o.paid ? '' : 'waitlisted'}`}>{o.paid ? 'Paid' : 'Unpaid'}</span>
             <strong>{money(cur, o.net)}</strong>
@@ -88,10 +94,10 @@ export function Overview() {
   )
 }
 
-export function Stat({ label, value, hint, onClick }: { label: string; value: string; hint?: string; onClick?: () => void }) {
+export function Stat({ icon: Icon, label, value, hint, onClick }: { icon?: ComponentType<{ size?: number }>; label: string; value: string; hint?: string; onClick?: () => void }) {
   const body = (
     <>
-      <span className="muted small">{label}</span>
+      <span className="stat-label">{Icon && <span className="stat-icon"><Icon size={16} /></span>}{label}</span>
       <strong>{value}</strong>
       {hint && <span className="muted tiny">{hint}</span>}
     </>

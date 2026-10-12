@@ -3,6 +3,8 @@ import { useStore } from '../lib/store'
 import { activePackages, addMember, markOrderPaid, purchase, type PaymentMethod, type User } from '../lib/model'
 import { fmtDate, fmtDay, fmtTime, money } from '../lib/format'
 import { navigate, type Route } from '../lib/router'
+import { UserPlus } from 'lucide-react'
+import { initials } from '../ui'
 
 const METHODS: PaymentMethod[] = ['Cash', 'Card', 'Online banking', 'Bank transfer', 'Complimentary']
 type Tab = 'all' | 'birthdays' | 'unpaid'
@@ -11,7 +13,7 @@ export function Members({ route }: { route: Route }) {
   const { state } = useStore()
   const tab = (route.query.get('tab') as Tab) || 'all'
   const selectedId = route.query.get('id')
-  const [q, setQ] = useState('')
+  const [q, setQ] = useState(route.query.get('q') ?? '')
   const [adding, setAdding] = useState(false)
   const cur = state.studio.currency
   const month = new Date().getMonth() + 1
@@ -49,7 +51,7 @@ export function Members({ route }: { route: Route }) {
           <h1>Members</h1>
           <p className="muted">{members.length} members</p>
         </div>
-        <button className="btn primary" onClick={() => setAdding(!adding)}>+ Add member</button>
+        <button className="btn primary" onClick={() => setAdding(!adding)}><UserPlus size={16} /> Add member</button>
       </header>
       {adding && <AddMember onDone={(id) => { setAdding(false); if (id) go(tab, id) }} />}
 
@@ -84,7 +86,10 @@ export function Members({ route }: { route: Route }) {
                 return (
                   <tr key={u.id} className={u.id === selectedId ? 'active' : ''} onClick={() => go(tab, u.id)} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && go(tab, u.id)}>
                     <td>
-                      <strong>{u.name}</strong>
+                      <span className="who nowrap">
+                        <span className="avatar sm">{initials(u.name)}</span>
+                        <strong>{u.name}</strong>
+                      </span>
                       {s.unpaid > 0 && <span className="badge waitlisted">Unpaid</span>}
                       {!u.passwordHash && <span className="badge cancelled">No login</span>}
                     </td>

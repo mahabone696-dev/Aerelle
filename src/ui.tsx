@@ -25,3 +25,12 @@ export function Logo({ size = 32 }: { size?: number }) {
     </svg>
   )
 }
+
+/** "Alex Morgan" -> "AM" */
+export const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join('')
