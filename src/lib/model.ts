@@ -2,7 +2,7 @@
 // or throws a BookingError with a message that can be shown to the user.
 
 export type Role = 'member' | 'owner'
-export type PaymentMethod = 'Card' | 'Online banking' | 'Cash' | 'Bank transfer' | 'Complimentary'
+export type PaymentMethod = 'Card' | 'Online banking' | 'Cash' | 'Bank transfer' | 'Complimentary' | 'Pay at studio'
 export type OrderSource = 'Online' | 'Front desk'
 export type BookingStatus = 'booked' | 'waitlisted' | 'cancelled' | 'late-cancelled'
 export type Attendance = 'attended' | 'no-show'
@@ -291,6 +291,26 @@ function promoteWaitlist(state: State, session: Session, now: Date): State {
     }
   }
   return state
+}
+
+/**
+ * Moves a waitlisted member into a freed spot. Used by the member's own device: a member can't change other
+ * people's bookings, so whoever is first in line claims the spot when they next open the app.
+ */
+export function claimWaitlistSpot(state: State, userId: string, sessionId: string, now = new Date()): State {
+  const session = getSession(state, sessionId)
+  const entry = userBooking(state, userId, sessionId)
+  if (!entry || entry.status !== 'waitlisted') throw new BookingError('You are not on the waitlist for this class.')
+  if (new Date(session.start) <= now) throw new BookingError('This class has already started.')
+  if (waitlist(state, sessionId)[0]?.id !== entry.id) throw new BookingError('Someone is ahead of you on the waitlist.')
+  if (spotsLeft(state, session) === 0) throw new BookingError('The class is still full.')
+  const pkg = packageFor(state, userId, session, now)
+  if (!pkg) throw new BookingError(`You need a package that covers ${session.group} classes on this date.`)
+  return {
+    ...state,
+    memberPackages: adjustPackage(state.memberPackages, pkg.id, -session.cost),
+    bookings: state.bookings.map((b) => (b.id === entry.id ? { ...b, status: 'booked', packageId: pkg.id } : b)),
+  }
 }
 
 /** Staff check-in. Allowed from an hour before the class starts. */

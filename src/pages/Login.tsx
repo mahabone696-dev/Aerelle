@@ -6,7 +6,8 @@ import { LazyScene } from '../three/LazyScene'
 import { initials, Logo } from '../ui'
 
 export function Login({ route }: { route: Route }) {
-  const { platform, login, signup } = usePlatform()
+  const { platform, login, signup, resetPassword, mode: storeMode } = usePlatform()
+  const [info, setInfo] = useState<string | null>(null)
   const [mode, setMode] = useState<'login' | 'signup'>(route.path === '/signup' ? 'signup' : 'login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -96,11 +97,28 @@ export function Login({ route }: { route: Route }) {
         <button className="btn primary block" disabled={busy}>
           {mode === 'login' ? 'Sign in' : 'Create account · 1 free class'}
         </button>
-        <div className="demo">
-          <span className="muted small">Try a demo account:</span>
-          <button type="button" className="link" onClick={() => fillDemo('member')}>Member</button>
-          <button type="button" className="link" onClick={() => fillDemo('owner')}>Studio owner</button>
-        </div>
+        {mode === 'login' && (
+          <button
+            type="button"
+            className="link small forgot"
+            onClick={async () => {
+              if (!email.trim()) return setError('Enter your email above, then tap “Forgot password?” again.')
+              const err = await resetPassword(email)
+              setError(err)
+              setInfo(err ? null : `If ${email.trim()} has an account, a link to set a new password is on its way.`)
+            }}
+          >
+            Forgot password? First time here after your studio added you?
+          </button>
+        )}
+        {info && <p className="ok banner" role="status">{info}</p>}
+        {storeMode === 'demo' && (
+          <div className="demo">
+            <span className="muted small">Try a demo account:</span>
+            <button type="button" className="link" onClick={() => fillDemo('member')}>Member</button>
+            <button type="button" className="link" onClick={() => fillDemo('owner')}>Studio owner</button>
+          </div>
+        )}
       </form>
     </div>
   )

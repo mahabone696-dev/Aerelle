@@ -75,7 +75,11 @@ export function Directory() {
               </a>
             </li>
           ))}
-          {studios.length === 0 && <li className="empty">No studios match “{q}”.</li>}
+          {studios.length === 0 && (
+            <li className="empty">
+              {term ? `No studios match “${q}”.` : <>No studios yet. <a href="#/new-studio">Create the first one</a>.</>}
+            </li>
+          )}
         </ul>
 
         <section className="card cta-card">

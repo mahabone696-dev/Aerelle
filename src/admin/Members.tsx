@@ -6,7 +6,7 @@ import { navigate, type Route } from '../lib/router'
 import { UserPlus } from 'lucide-react'
 import { initials } from '../ui'
 
-const METHODS: PaymentMethod[] = ['Cash', 'Card', 'Online banking', 'Bank transfer', 'Complimentary']
+const METHODS: PaymentMethod[] = ['Cash', 'Card', 'Online banking', 'Bank transfer', 'Complimentary', 'Pay at studio']
 type Tab = 'all' | 'birthdays' | 'unpaid'
 
 export function Members({ route }: { route: Route }) {

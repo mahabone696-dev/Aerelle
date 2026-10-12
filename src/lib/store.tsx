@@ -41,23 +41,39 @@ const toError = (e: unknown) => {
 
 // ---------- Platform: accounts and the list of studios ----------
 
-interface PlatformStore {
+export interface PlatformStore {
+  /** 'demo' keeps everything in this browser with sample studios; 'cloud' uses Firebase. */
+  mode: 'demo' | 'cloud'
+  /** False until the sign-in state and studio list have loaded. */
+  ready: boolean
   platform: Platform
   account: Account | null
+  /** Cloud: whether the signed-in email is verified (needed to claim records a studio added). */
+  emailVerified: boolean
   login: (email: string, password: string) => Promise<string | null>
   signup: (name: string, email: string, password: string) => Promise<string | null>
   logout: () => void
   resetDemo: () => void
+  resetPassword: (email: string) => Promise<string | null>
+  resendVerification: () => Promise<string | null>
   /** Creates a studio owned by the signed-in account; returns its slug, or an error message. */
-  createStudio: (input: NewStudioInput) => { slug?: string; error?: string }
+  createStudio: (input: NewStudioInput) => Promise<{ slug?: string; error?: string }>
   joinStudio: (studioId: string) => void
   /** Runs a model action against one studio; returns an error message instead of throwing. */
   applyTo: (studioId: string, action: (s: State) => State) => string | null
+  /** Tells the store which studio is open, so it can load that studio's private records. */
+  setActiveStudio: (studioId: string | null) => void
+  /** True once the open studio's records (for the signed-in person's role) have loaded. */
+  activeReady: boolean
+  /** A message from a background save that failed, shown as a banner. */
+  notice: string | null
+  dismissNotice: () => void
 }
 
-const PlatformContext = createContext<PlatformStore | null>(null)
+export const PlatformContext = createContext<PlatformStore | null>(null)
 
-export function PlatformProvider({ children }: { children: ReactNode }) {
+/** Everything in this browser, with demo studios. Used by `npm run dev` with VITE_DEMO=1 and for trying the app offline. */
+export function LocalPlatformProvider({ children }: { children: ReactNode }) {
   const [platform, setPlatform] = useState<Platform>(load)
   const [accountId, setAccountId] = useState<string | null>(() => {
     try {
@@ -118,16 +134,25 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<PlatformStore>(
     () => ({
+      mode: 'demo',
+      ready: true,
       platform,
       account: platform.accounts.find((a) => a.id === accountId) ?? null,
+      emailVerified: true,
       login,
       signup,
+      resetPassword: async () => 'Password reset emails are only sent in the live app.',
+      resendVerification: async () => null,
+      setActiveStudio: () => {},
+      activeReady: true,
+      notice: null,
+      dismissNotice: () => {},
       logout: () => setAccountId(null),
       resetDemo: () => {
         setPlatform(seedPlatform())
         setAccountId(null)
       },
-      createStudio: (input) => {
+      createStudio: async (input) => {
         if (!accountId) return { error: 'Sign in to create a studio.' }
         try {
           const { platform: next, slug } = createStudio(platform, accountId, input)
@@ -155,6 +180,9 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>
 }
+
+/** Firebase in the deployed app; the in-browser demo when built with VITE_DEMO=1. */
+export const DEMO = import.meta.env.VITE_DEMO === '1'
 
 export function usePlatform() {
   const p = useContext(PlatformContext)

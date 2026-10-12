@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
-import { collectionGroup, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore'
+import { collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore'
 
 let env: RulesTestEnvironment
 const A = 'studio-a'
@@ -22,7 +22,7 @@ beforeEach(async () => {
     const db = ctx.firestore()
     for (const [sid, owner] of [[A, 'ownerA'], [B, 'ownerB']]) {
       await setDoc(doc(db, `studios/${sid}`), { id: sid, slug: sid, name: sid, ownerUids: [owner] })
-      await setDoc(doc(db, `studios/${sid}/sessions/s1`), { id: 's1', capacity: 2, booked: ['alice'], waitlist: [] })
+      await setDoc(doc(db, `studios/${sid}/sessions/s1`), { id: 's1', capacity: 2, booked: ['b1'], waitlist: [] })
       await setDoc(doc(db, `studios/${sid}/members/alice`), { id: 'alice', email: 'alice@x.test', role: 'member' })
       await setDoc(doc(db, `studios/${sid}/bookings/b1`), { id: 'b1', userId: 'alice', sessionId: 's1', status: 'booked' })
       await setDoc(doc(db, `studios/${sid}/packages/p1`), { id: 'p1', userId: 'alice', total: 10, remaining: 9, orderId: 'o1' })
@@ -85,21 +85,34 @@ describe('members', () => {
     await assertFails(setDoc(doc(as('eve'), `studios/${A}/members/eve`), { id: 'eve', role: 'owner', email: 'eve@x.test' }))
     await assertFails(updateDoc(doc(as('alice'), `studios/${A}/members/alice`), { role: 'owner' }))
   })
+  // Bob books: his booking and the timetable change are saved together.
+  const bobBooks = (db: ReturnType<typeof as>, status: string, list: 'booked' | 'waitlist', value: string[], bookingId = 'bob-b') => {
+    const batch = writeBatch(db)
+    batch.set(doc(db, `studios/${A}/bookings/${bookingId}`), { id: bookingId, userId: 'bob', sessionId: 's1', status })
+    batch.update(doc(db, `studios/${A}/sessions/s1`), { [list]: value })
+    return batch.commit()
+  }
   it('can take a spot for themselves within capacity', async () => {
-    await assertSucceeds(updateDoc(doc(as('bob'), `studios/${A}/sessions/s1`), { booked: ['alice', 'bob'] }))
+    await assertSucceeds(bobBooks(as('bob'), 'booked', 'booked', ['b1', 'bob-b']))
   })
-  it('cannot overbook, book someone else, remove others, or write from a stale timetable', async () => {
-    await assertFails(updateDoc(doc(as('bob'), `studios/${A}/sessions/s1`), { booked: ['alice', 'bob', 'zed'] }))
-    await assertFails(updateDoc(doc(as('bob'), `studios/${A}/sessions/s1`), { booked: ['alice', 'zed'] }))
+  it('cannot overbook, use someone else’s booking, remove others, or write from a stale timetable', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), `studios/${A}/bookings/zed-b`), { id: 'zed-b', userId: 'zed', sessionId: 's1', status: 'booked' }))
+    await assertFails(updateDoc(doc(as('bob'), `studios/${A}/sessions/s1`), { booked: ['b1', 'zed-b'] }))
     await assertFails(updateDoc(doc(as('bob'), `studios/${A}/sessions/s1`), { booked: [] }))
     await assertFails(updateDoc(doc(as('bob'), `studios/${A}/sessions/s1`), { capacity: 50 }))
-    // Bob computed his list before Zed took the last spot: the server rejects it.
-    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `studios/${A}/sessions/s1`), { booked: ['alice', 'zed'] }))
-    await assertFails(updateDoc(doc(as('bob'), `studios/${A}/sessions/s1`), { booked: ['alice', 'bob'] }))
+    // Session full (capacity 2): Bob's third spot is refused.
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `studios/${A}/sessions/s1`), { booked: ['b1', 'zed-b'] }))
+    await assertFails(bobBooks(as('bob'), 'booked', 'booked', ['b1', 'zed-b', 'bob-b']))
+    // Bob computed his list before Zed took the last spot: the server rejects the stale list.
+    await assertFails(bobBooks(as('bob'), 'booked', 'booked', ['b1', 'bob-b']))
   })
   it('join the waitlist at the back and can leave it', async () => {
-    await assertSucceeds(updateDoc(doc(as('bob'), `studios/${A}/sessions/s1`), { waitlist: ['bob'] }))
-    await assertSucceeds(updateDoc(doc(as('bob'), `studios/${A}/sessions/s1`), { waitlist: [] }))
+    await assertSucceeds(bobBooks(as('bob'), 'waitlisted', 'waitlist', ['bob-b']))
+    const db = as('bob')
+    const batch = writeBatch(db)
+    batch.update(doc(db, `studios/${A}/bookings/bob-b`), { status: 'cancelled' })
+    batch.update(doc(db, `studios/${A}/sessions/s1`), { waitlist: [] })
+    await assertSucceeds(batch.commit())
   })
   it('cannot mark their own attendance or give themselves classes', async () => {
     await assertFails(updateDoc(doc(as('alice'), `studios/${A}/bookings/b1`), { attendance: 'attended' }))
@@ -135,6 +148,7 @@ describe('claiming records a studio added before sign-up', () => {
 
   it('works only with the same, verified email', async () => {
     await assertSucceeds(getDocs(query(collectionGroup(carol(true), 'members'), where('email', '==', 'carol@x.test'))))
+    await assertSucceeds(getDocs(query(collection(carol(true), `studios/${A}/packages`), where('userId', '==', 'ph1'))))
     await assertSucceeds(updateDoc(doc(carol(true), `studios/${A}/packages/ph-p`), { userId: 'carol-uid' }))
     await assertFails(getDoc(doc(carol(false), `studios/${A}/members/ph1`)))
     await assertFails(updateDoc(doc(carol(false), `studios/${B}/packages/ph-p`), { userId: 'carol-uid' }))

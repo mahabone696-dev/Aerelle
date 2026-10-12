@@ -14,9 +14,12 @@ export function NewStudio() {
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }))
   const slug = form.name.trim() ? uniqueSlug(platform, form.name) : 'your-studio'
 
-  function submit(e: FormEvent) {
+  const [busy, setBusy] = useState(false)
+  async function submit(e: FormEvent) {
     e.preventDefault()
-    const { slug: created, error: err } = createStudio(form)
+    setBusy(true)
+    const { slug: created, error: err } = await createStudio(form)
+    setBusy(false)
     if (err) return setError(err)
     navigate(`/s/${created}/overview`)
   }
@@ -60,7 +63,7 @@ export function NewStudio() {
           <p className="muted tiny">We'll add starter class types and packages for this kind of studio. Edit or remove them any time.</p>
           {error && <p className="error">{error}</p>}
           <div className="actions">
-            <button className="btn primary">Create studio</button>
+            <button className="btn primary" disabled={busy}>{busy ? 'Creating…' : 'Create studio'}</button>
             <a className="btn ghost" href="#/studios">Cancel</a>
           </div>
         </form>

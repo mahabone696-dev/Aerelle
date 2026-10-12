@@ -41,14 +41,17 @@ interface Tab {
 
 export function App() {
   const route = useRoute()
-  const { platform, account, joinStudio } = usePlatform()
+  const { platform, account, joinStudio, ready, setActiveStudio, activeReady } = usePlatform()
   setStudioBase(route.studio)
   const studio = route.studio ? studioBySlug(platform, route.studio) : undefined
   const role = account && studio ? roleIn(studio, account.id) : null
   const home = account ? homeFor(platform, account.id) : '/studios'
   const isLogin = route.full === '/login' || route.full === '/signup'
+  const studioId = studio?.studio.id ?? null
+  useEffect(() => setActiveStudio(studioId), [studioId, setActiveStudio])
 
   useEffect(() => {
+    if (!ready) return
     if (isLogin) {
       if (account) navigate(safeNext(route.query.get('next'), home))
     } else if (route.studio) {
@@ -62,20 +65,61 @@ export function App() {
     } else if (route.full !== '/studios' && route.full !== '/') {
       navigate(home)
     }
-  }, [route, account, studio, role, home, isLogin, joinStudio])
+  }, [route, account, studio, role, home, isLogin, joinStudio, ready])
 
-  if (isLogin) return <Login route={route} />
-  if (studio && role && PATHS[role].has(route.path)) {
+  return (
+    <>
+      <Notice />
+      {isLogin ? (
+        <Login route={route} />
+      ) : route.full === '/' ? (
+        <Landing />
+      ) : !ready || (studio && !activeReady) ? (
+        <Loading />
+      ) : studio && role && PATHS[role].has(route.path) ? (
+        <StudioScope studio={studio}>{role === 'owner' ? <AdminShell route={route} /> : <MemberShell route={route} />}</StudioScope>
+      ) : route.full === '/studios' ? (
+        <Directory />
+      ) : route.full === '/new-studio' && account ? (
+        <NewStudio />
+      ) : (
+        <Loading /> // redirecting
+      )}
+    </>
+  )
+}
+
+function Loading() {
+  return (
+    <div className="loading" role="status" aria-live="polite">
+      <Logo size={40} />
+      <span className="spinner" />
+      <span className="muted small">Loading…</span>
+    </div>
+  )
+}
+
+/** Banner for saves that fail after the screen already updated (e.g. the last spot was just taken). */
+function Notice() {
+  const { notice, dismissNotice, account, emailVerified, resendVerification, mode } = usePlatform()
+  const [sent, setSent] = useState(false)
+  if (notice) {
     return (
-      <StudioScope studio={studio}>
-        {role === 'owner' ? <AdminShell route={route} /> : <MemberShell route={route} />}
-      </StudioScope>
+      <div className="notice" role="alert">
+        <span>{notice}</span>
+        <button className="icon-btn" onClick={dismissNotice} aria-label="Dismiss"><X size={16} /></button>
+      </div>
     )
   }
-  if (route.full === '/') return <Landing />
-  if (route.full === '/studios') return <Directory />
-  if (route.full === '/new-studio' && account) return <NewStudio />
-  return null // redirecting
+  if (mode === 'cloud' && account && !emailVerified) {
+    return (
+      <div className="notice soft" role="status">
+        <span>Check {account.email} for a link to verify your email. Verifying links any bookings and packages a studio already set up for you.</span>
+        <button className="btn sm" disabled={sent} onClick={() => resendVerification().then(() => setSent(true))}>{sent ? 'Sent' : 'Resend'}</button>
+      </div>
+    )
+  }
+  return null
 }
 
 // ---------- Studio owner ----------
@@ -271,7 +315,7 @@ function Alerts() {
 
 /** Account menu; `role` is the person's role in the studio being shown, if any. */
 export function UserMenu({ role }: { role?: Role }) {
-  const { account, logout, resetDemo } = usePlatform()
+  const { account, logout, resetDemo, mode } = usePlatform()
   if (!account) return <a className="btn primary" href={`#/login?next=${encodeURIComponent(window.location.hash.slice(1) || '/studios')}`}>Sign in</a>
   return (
     <details className="dropdown">
@@ -288,9 +332,11 @@ export function UserMenu({ role }: { role?: Role }) {
         <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Browse studios</a>
         <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>
         <div className="menu-sep" />
-        <button className="menu-item" onClick={() => confirm('Reset all demo data?') && resetDemo()}>
-          <RotateCcw size={16} /> Reset demo data
-        </button>
+        {mode === 'demo' && (
+          <button className="menu-item" onClick={() => confirm('Reset all demo data?') && resetDemo()}>
+            <RotateCcw size={16} /> Reset demo data
+          </button>
+        )}
         <button className="menu-item" onClick={logout}><LogOut size={16} /> Sign out</button>
       </div>
     </details>

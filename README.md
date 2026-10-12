@@ -4,6 +4,22 @@ Aerelle is a standalone booking and studio-management app with a baby-blue and w
 
 It ships pre-loaded with Aligné Pilates' class types, instructors, location (Horizon Hills), RM pricing and package catalog. Members, bookings and reviews are invented demo data.
 
+## Data and security
+
+The live app uses **Firebase** (project `aerelle-studio-696`): Authentication for logins and Firestore (Singapore, `asia-southeast1`) for data. `src/lib/cloud.tsx` loads data and saves changes; `firestore.rules` decides who can read and write what:
+
+- Each studio's members, bookings, packages and orders are visible only to that studio's owners and to the member they belong to.
+- The timetable and ratings are public; other people's spots appear as anonymous ids, never names.
+- Members can only book or cancel their own spots within capacity, can't change attendance, and can't give themselves classes. Packages bought online stay **unpaid** until the studio marks them paid.
+- People a studio adds at the front desk get their records when they sign up with the same email **and verify it**.
+
+```bash
+npm run test:rules    # security rules against the Firestore emulator (needs Java)
+npm run deploy:rules  # publish firestore.rules and indexes
+```
+
+`npm run dev` uses Firebase too; `VITE_DEMO=1 npm run dev` runs the in-browser demo with sample studios instead.
+
 ## Run
 
 ```bash
@@ -13,7 +29,7 @@ npm test         # rules + reports unit tests
 npm run build    # static build in dist/
 ```
 
-Demo accounts (password `demo1234`):
+Demo accounts for `VITE_DEMO=1` (password `demo1234`):
 - `owner@aerelle.test`: owns Aligné Pilates and Lumen Reformer Co.
 - `tidal@aerelle.test`: owns Tidal Yoga & Barre
 - `member@aerelle.test`: a member at Aligné Pilates and Lumen Reformer Co.
@@ -63,8 +79,6 @@ AI booking assistant, funding, marketing email, merchandise shop, door access, w
 
 Live at https://aerelle.vercel.app. Every push to `main` deploys automatically through Vercel.
 
-Data lives in each browser's `localStorage` (`src/lib/store.tsx`), so it is not shared between people yet.
-1. Move the `Platform` (accounts plus one `State` per studio) into a database (e.g. Firebase or Supabase), with security rules so owners can only change their own studios, and run the pure functions in `src/lib/model.ts` server-side inside a transaction, so two members can't take the last spot.
-2. Replace the demo password hashing with real auth (e.g. Firebase Auth).
-3. Connect a payment gateway (e.g. Stripe or a Malaysian provider such as Billplz or iPay88) in `Packs.tsx`, and only create the package from its payment webhook.
-4. Review capacities, durations and instructor-per-slot in the seed (`src/lib/seed.ts`). They are estimates.
+Data, logins and security run on Firebase (see **Data and security** above). Still to do:
+1. Connect a payment gateway (e.g. Stripe or a Malaysian provider such as Billplz or iPay88) in `Packs.tsx`. Online purchases are recorded as "pay at studio" until then.
+2. Move multi-step changes that affect other people (e.g. promoting someone from a waitlist when a studio cancels a class) into Cloud Functions if you want those to happen even when the member's app is closed. Today a waitlisted member's own device claims a freed spot the next time they open the app.

@@ -101,17 +101,17 @@ export function Packs() {
               {preview.discount > 0 && (<><dt>Discount ({preview.promo})</dt><dd>-{money(cur, preview.discount)}</dd></>)}
               <dt><strong>Total</strong></dt><dd><strong>{money(cur, preview.net)}</strong></dd>
             </dl>
-            <p className="muted tiny">Demo checkout: no payment is taken. Connect a payment gateway before going live.</p>
+            <p className="muted tiny">You can book with this package straight away. Pay at the studio on your next visit; it shows as unpaid until then.</p>
             <div className="actions">
               <button
                 className="btn primary"
                 onClick={() => {
-                  const err = apply((s) => purchase(s, user.id, selected.id, { promo: promoError ? '' : promo }))
-                  setMsg(err ? { kind: 'error', text: err } : { kind: 'ok', text: `${selected.name} added to your account.` })
+                  const err = apply((s) => purchase(s, user.id, selected.id, { promo: promoError ? '' : promo, paid: false, method: 'Pay at studio' }))
+                  setMsg(err ? { kind: 'error', text: err } : { kind: 'ok', text: `${selected.name} is ready to use. Please pay at the studio on your next visit.` })
                   if (!err) { setSelected(null); setPromo('') }
                 }}
               >
-                Pay {money(cur, preview.net)}
+                Get package · pay {money(cur, preview.net)} at studio
               </button>
               <button className="btn ghost" onClick={() => setSelected(null)}>Cancel</button>
             </div>

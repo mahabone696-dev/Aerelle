@@ -2,13 +2,13 @@ rules_version = '2';
 
 // Aerelle access rules. Every studio is isolated: its members, bookings, packages and orders are readable
 // only by that studio's owners and by the member they belong to. Public: studio profiles, the timetable
-// (with booked/waitlist account ids, no names) and ratings.
+// (with booking ids for taken spots, no names) and ratings.
 //
 // Layout
 //   accounts/{uid}                       a person's own profile
 //   slugs/{slug}                         reserves a studio's link name
 //   studios/{sid}                        profile, class types, staff, package catalogue, ownerUids
-//   studios/{sid}/sessions/{id}          timetable; booked[] and waitlist[] hold account ids
+//   studios/{sid}/sessions/{id}          timetable; booked[] and waitlist[] hold booking ids
 //   studios/{sid}/members/{id}           a person's record at this studio (id = uid, or a placeholder
 //                                         for someone the studio added who hasn't signed up yet)
 //   studios/{sid}/bookings|packages|orders|ratings|promos/{id}
@@ -56,7 +56,8 @@ service cloud.firestore {
       allow update: if isOwner(sid) && request.resource.data.ownerUids.size() > 0 && unchanged('id') && unchanged('slug');
       allow delete: if false;
 
-      // Timetable. Owners manage it; a member may only add or remove themselves.
+      // Timetable. booked[] and waitlist[] hold booking ids, in the order spots were taken.
+      // Owners manage everything; a member may only add or remove one of their own bookings.
       match /sessions/{id} {
         allow read: if true;
         allow create, delete: if isOwner(sid);
@@ -68,11 +69,16 @@ service cloud.firestore {
           return listChange(before.booked, after.booked) && listChange(before.waitlist, after.waitlist)
             && after.booked.size() <= before.capacity;
         }
-        // Unchanged, the caller appended themselves once, or the caller removed themselves.
+        function ownBooking(bookingId) {
+          return getAfter(/databases/$(database)/documents/studios/$(sid)/bookings/$(bookingId)).data.userId == uid();
+        }
+        // Unchanged; one of the caller's bookings appended at the end; or one of the caller's bookings removed.
         function listChange(before, after) {
           return after == before
-            || (!(uid() in before) && after == before.concat([uid()]))
-            || ((uid() in before) && after == before.removeAll([uid()]));
+            || (after.size() == before.size() + 1 && after == before.concat([after[after.size() - 1]])
+                && !(after[after.size() - 1] in before) && ownBooking(after[after.size() - 1]))
+            || (after.size() == before.size() - 1 && before.removeAll(after).size() == 1
+                && after == before.removeAll(before.removeAll(after)) && ownBooking(before.removeAll(after)[0]));
         }
       }
 

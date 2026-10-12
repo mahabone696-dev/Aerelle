@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  addSession, book, canRate, cancel, classesLeft, markAttendance, markOrderPaid, packageFor, purchase, quote, rate,
+  addSession, book, canRate, claimWaitlistSpot, cancel, classesLeft, markAttendance, markOrderPaid, packageFor, purchase, quote, rate,
   removeSession, savePromo, spotsLeft, type PackageOption, type Session, type State,
 } from './model'
 import { bookingReport, cancellationReport, payrollReport, salesReport } from './reports'
@@ -97,6 +97,21 @@ describe('cancelling', () => {
     s = removeSession(s, 'future', NOW)
     expect(left(s, 'u0')).toBe(7)
     expect(left(s, 'u1')).toBe(2)
+  })
+})
+
+describe('claiming a waitlist spot', () => {
+  it('lets the first person in line take a freed spot', () => {
+    let s = book(world(), 'u0', 'future', NOW)
+    s = book(s, 'u1', 'future', NOW)
+    s = book(s, 'u2', 'future', NOW)
+    // A spot frees up without promotion (as when another member cancels from their own device).
+    s = { ...s, bookings: s.bookings.map((b) => (b.userId === 'u0' ? { ...b, status: 'cancelled' as const } : b)) }
+    expect(() => claimWaitlistSpot(s, 'u2', 'future', NOW)).toThrow(/ahead/)
+    s = claimWaitlistSpot(s, 'u1', 'future', NOW)
+    expect(s.bookings.find((b) => b.userId === 'u1')!.status).toBe('booked')
+    expect(left(s, 'u1')).toBe(1)
+    expect(() => claimWaitlistSpot(s, 'u2', 'future', NOW)).toThrow(/full/)
   })
 })
 
