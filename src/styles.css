@@ -1,13 +1,13 @@
 /* Aerelle: baby blue and white, frosted glass over a WebGL scene. */
 :root {
   --white: #ffffff;
-  --baby-50: #f3faff;
-  --baby-100: #e4f4fe;
-  --baby-200: #cbe9fc;
-  --baby-300: #a8daf8;
-  --baby-400: #7fc6f2;
-  --baby-500: #55afe8;
-  --blue-700: #1d6fae;
+  --baby-50: #f7fcff;
+  --baby-100: #edf8ff;
+  --baby-200: #dcf0fd;
+  --baby-300: #c4e6fb;
+  --baby-400: #a9daf8;
+  --baby-500: #86c9f3;
+  --blue-700: #2a7bbd;
   --navy: #0e2a44;
 
   --bg: #f4faff;
@@ -960,3 +960,12 @@ html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-si
 @media (hover: none) and (pointer: coarse) {
   input, select, textarea, .copy-row input { font-size: 16px; }
 }
+
+/* ---------- Lighter blue: keep text readable ---------- */
+/* On the lighter blues, white text is too faint, so these use navy text instead. */
+.count, .menu summary, .day[aria-selected='true'], .seg-sm button[aria-pressed='true']:first-child,
+.cal-date.today, .studio-mark, .step { color: var(--navy); }
+.btn.primary:hover:not(:disabled) { color: var(--navy); box-shadow: 0 4px 12px -4px rgb(134 201 243 / 0.8); }
+.btn.primary { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), 0 6px 16px -8px rgb(134 201 243 / 0.9); }
+.day[aria-selected='true'] { box-shadow: 0 8px 18px -10px rgb(134 201 243 / 1); }
+body { background: #f7fbfe; }

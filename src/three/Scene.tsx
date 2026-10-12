@@ -8,9 +8,9 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 
 export type SceneVariant = 'hero' | 'ambient'
 
-const BABY = new THREE.Color('#9fd6f7')
-const SKY = new THREE.Color('#6fbdf0')
-const ICE = new THREE.Color('#e3f3fd')
+const BABY = new THREE.Color('#bfe4fb')
+const SKY = new THREE.Color('#95d0f5')
+const ICE = new THREE.Color('#eef8fe')
 
 export default function Scene({ variant }: { variant: SceneVariant }) {
   const hostRef = useRef<HTMLDivElement>(null)
