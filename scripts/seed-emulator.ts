@@ -1,0 +1,47 @@
+// Loads the demo studio into the local Firebase emulators for end-to-end testing (never the live project).
+//   node --experimental-strip-types scripts/seed-emulator.ts
+import { seedState } from '../src/lib/seed.ts'
+
+const PROJECT = 'aerelle-studio-696'
+const AUTH = 'http://127.0.0.1:9099'
+const FS = `http://127.0.0.1:8085/v1/projects/${PROJECT}/databases/(default)/documents`
+const owner = { authorization: 'Bearer owner', 'content-type': 'application/json' } // emulator admin
+
+function enc(v: unknown): object {
+  if (v === null || v === undefined) return { nullValue: null }
+  if (typeof v === 'string') return { stringValue: v }
+  if (typeof v === 'boolean') return { booleanValue: v }
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(enc) } }
+  return { mapValue: { fields: fields(v as Record<string, unknown>) } }
+}
+const fields = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([, x]) => x !== undefined).map(([k, x]) => [k, enc(x)]))
+const name = (p: string) => `projects/${PROJECT}/databases/(default)/documents/${p}`
+async function post(url: string, body: unknown, headers: Record<string, string> = owner) {
+  const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`)
+  return r.json()
+}
+
+const s = seedState(new Date())
+const sid = s.studio.id
+// Logins (password demo1234) whose uid matches the demo records.
+for (const [localId, email, displayName] of [['u-owner', 'owner@aerelle.test', 'Studio Owner'], ['u-demo', 'member@aerelle.test', 'Alex Morgan']]) {
+  await post(`${AUTH}/identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts`, { localId, email, password: 'demo1234', displayName, emailVerified: true })
+}
+const writes: object[] = []
+const put = (p: string, data: Record<string, unknown>) => writes.push({ update: { name: name(p), fields: fields({ ...data, studioId: sid }) } })
+put(`studios/${sid}`, { ...s.studio, classTypes: s.classTypes, staff: s.staff, packageOptions: s.packageOptions, ownerUids: ['u-owner'] })
+put(`slugs/${s.studio.slug}`, { studioId: sid, createdBy: 'u-owner' })
+for (const u of s.users) { const { passwordHash: _p, ...rest } = u; put(`studios/${sid}/members/${u.id}`, { ...rest, email: u.email.toLowerCase(), claimed: true }) }
+for (const x of s.sessions) {
+  const mine = s.bookings.filter((b) => b.sessionId === x.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  put(`studios/${sid}/sessions/${x.id}`, { ...x, booked: mine.filter((b) => b.status === 'booked').map((b) => b.id), waitlist: mine.filter((b) => b.status === 'waitlisted').map((b) => b.id) })
+}
+for (const b of s.bookings) put(`studios/${sid}/bookings/${b.id}`, b as unknown as Record<string, unknown>)
+for (const p of s.memberPackages) put(`studios/${sid}/packages/${p.id}`, p as unknown as Record<string, unknown>)
+for (const o of s.orders) put(`studios/${sid}/orders/${o.id}`, o as unknown as Record<string, unknown>)
+for (const r of s.ratings) put(`studios/${sid}/ratings/${r.id}`, r as unknown as Record<string, unknown>)
+for (const p of s.promoCodes) put(`studios/${sid}/promos/${p.id}`, p as unknown as Record<string, unknown>)
+for (let i = 0; i < writes.length; i += 400) await post(`${FS}:commit`, { writes: writes.slice(i, i + 400) })
+console.log(`seeded ${s.studio.name}: ${s.users.length} people, ${s.sessions.length} classes, ${s.bookings.length} bookings, ${s.orders.length} orders, ${s.ratings.length} reviews`)

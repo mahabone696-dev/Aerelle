@@ -927,3 +927,28 @@ main.platform-content.narrow { max-width: 760px; }
   .land-nav .brand-name { display: none; }
   .vertical-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------- App: tablet & phone alignment ---------- */
+.master-detail .col-phone { display: none; }
+@media (max-width: 1000px) {
+  .stats { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .stat strong { white-space: nowrap; font-size: clamp(1.2rem, 1.2vw + 0.9rem, 1.65rem); }
+  /* Member header: tabs get their own row so nothing is cut off. */
+  .member-header-inner { flex-wrap: wrap; height: auto; padding: 10px 24px 0; gap: 0.5rem 1rem; }
+  .member-nav { order: 3; flex-basis: 100%; height: 46px; }
+  .member-header .header-actions { margin-left: auto; }
+  .member-header .user-chip > span:not(.avatar), .member-header .user-chip > svg { display: none; }
+  .member-header .user-chip { padding: 3px; }
+}
+@media (max-width: 720px) {
+  .hide-sm { display: none !important; } /* beats component display rules such as .btn's */
+  .member-header-inner { padding: 8px 16px 0; }
+  .member-nav { height: 56px; gap: 0; }
+  .member-nav a { position: relative; flex: 1; flex-direction: column; justify-content: center; gap: 3px; padding: 0 2px; font-size: 0.72rem; text-align: center; }
+  .member-nav .count { position: absolute; top: 5px; left: calc(50% + 6px); margin: 0; font-size: 0.62rem; padding: 0 0.35rem; }
+  .global-search { min-width: 0; }
+  .global-search input::placeholder { color: var(--muted); }
+}
+@media (max-width: 400px) {
+  .global-search input::placeholder { color: transparent; }
+}

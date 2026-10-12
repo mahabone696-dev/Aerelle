@@ -72,7 +72,7 @@ export function Members({ route }: { route: Route }) {
               <tr>
                 <th>Name</th>
                 <th className="hide-sm">Email</th>
-                <th className="hide-sm">Phone</th>
+                <th className="hide-sm col-phone">Phone</th>
                 {tab === 'birthdays' && <th>Birthday</th>}
                 <th className="num">Sales</th>
                 <th className="num">Packages</th>
@@ -91,10 +91,10 @@ export function Members({ route }: { route: Route }) {
                         <strong>{u.name}</strong>
                       </span>
                       {s.unpaid > 0 && <span className="badge waitlisted">Unpaid</span>}
-                      {!u.passwordHash && <span className="badge cancelled">No login</span>}
+                      {!u.passwordHash && <span className="badge cancelled hide-sm" title="Hasn't signed in to Aerelle yet">No login</span>}
                     </td>
                     <td className="hide-sm">{u.email}</td>
-                    <td className="hide-sm nowrap">{u.phone}</td>
+                    <td className="hide-sm nowrap col-phone">{u.phone}</td>
                     {tab === 'birthdays' && <td>{new Date(u.birthday).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</td>}
                     <td className="num">{money(cur, s.sales)}</td>
                     <td className="num">{s.packages}</td>

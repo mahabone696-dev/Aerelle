@@ -42,7 +42,9 @@ const strip = <T,>(data: DocumentData, drop: string[] = []): T => {
   return out as T
 }
 const toSession = (d: SessionDoc): Session => strip<Session>(d, ['booked', 'waitlist'])
-const toUser = (d: DocumentData): User => ({ ...strip<User>(d, ['claimed']), passwordHash: '' })
+// The app never sees passwords; a non-empty passwordHash just marks "has signed in to Aerelle" (claimed),
+// which the Members page uses for its "No login" badge.
+const toUser = (d: DocumentData): User => ({ ...strip<User>(d, ['claimed']), passwordHash: d.claimed ? 'account' : '' })
 const memberDoc = (u: User) => ({ id: u.id, name: u.name, email: u.email.toLowerCase(), phone: u.phone, birthday: u.birthday, role: u.role, joinedAt: u.joinedAt })
 
 /** Stable JSON for change detection: sorted keys, undefined dropped. */

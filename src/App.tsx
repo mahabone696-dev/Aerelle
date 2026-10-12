@@ -381,7 +381,7 @@ function MemberShell({ route }: { route: Route }) {
           </nav>
           <div className="header-actions">
             <a className="credits" href={link('/credits')} title="Classes left across your active packages at this studio">
-              <Ticket size={15} /> {plural(classesLeft(state, user.id), 'class', 'classes')} left
+              <Ticket size={15} /> {classesLeft(state, user.id)}<span className="hide-sm">&nbsp;{classesLeft(state, user.id) === 1 ? 'class' : 'classes'} left</span>
             </a>
             <UserMenu role="member" />
           </div>
