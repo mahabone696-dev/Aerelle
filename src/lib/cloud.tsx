@@ -147,8 +147,14 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
     if (!uid) return
     const subs = [
       onSnapshot(doc(db, 'accounts', uid), (d) => setAccountDoc(d.exists() ? (d.data() as Account) : null)),
-      onSnapshot(query(collectionGroup(db, 'members'), where('id', '==', uid)), (snap) =>
-        setMine(Object.fromEntries(snap.docs.map((d) => [d.ref.parent.parent!.id, toUser(d.data())]))),
+      onSnapshot(
+        query(collectionGroup(db, 'members'), where('id', '==', uid)),
+        (snap) => setMine(Object.fromEntries(snap.docs.map((d) => [d.ref.parent.parent!.id, toUser(d.data())]))),
+        (e) => {
+          // Never leave the app waiting: carry on without memberships and say so.
+          setMine({})
+          setNotice(friendly(e))
+        },
       ),
     ]
     return () => subs.forEach((u) => u())
