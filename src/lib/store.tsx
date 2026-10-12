@@ -1,27 +1,28 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BookingError, newId, type State, type User } from './model'
-import { seedState } from './seed'
+import { createStudio, joinStudio, syncAccounts, type Account, type NewStudioInput, type Platform } from './platform'
+import { seedPlatform } from './seed'
 
 // Local-only persistence. Swap load/save for API calls to put this behind a real backend;
-// every mutation already goes through `apply`, which is the single write path.
+// every mutation goes through `run` (platform) or `apply` (one studio), the only write paths.
 
-const STATE_KEY = 'aerelle.state.v2'
+const STATE_KEY = 'aerelle.platform.v3'
 const SESSION_KEY = 'aerelle.session.v1'
 
-function load(): State {
+function load(): Platform {
   try {
     const raw = localStorage.getItem(STATE_KEY)
-    const parsed = raw ? (JSON.parse(raw) as State) : null
-    if (parsed?.version === 2) return parsed
+    const parsed = raw ? (JSON.parse(raw) as Platform) : null
+    if (parsed?.version === 3) return parsed
   } catch {
     // Corrupt or blocked storage: fall through to fresh demo data.
   }
-  return seedState()
+  return seedPlatform()
 }
 
-function save(state: State) {
+function save(p: Platform) {
   try {
-    localStorage.setItem(STATE_KEY, JSON.stringify(state))
+    localStorage.setItem(STATE_KEY, JSON.stringify(p))
   } catch {
     // Storage full or blocked; the app keeps working in memory.
   }
@@ -33,22 +34,32 @@ export async function hashPassword(password: string) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-interface Store {
-  state: State
-  user: User | null
-  /** Runs a model action; returns an error message instead of throwing. */
-  apply: (action: (s: State) => State) => string | null
+const toError = (e: unknown) => {
+  if (e instanceof BookingError) return e.message
+  throw e
+}
+
+// ---------- Platform: accounts and the list of studios ----------
+
+interface PlatformStore {
+  platform: Platform
+  account: Account | null
   login: (email: string, password: string) => Promise<string | null>
   signup: (name: string, email: string, password: string) => Promise<string | null>
   logout: () => void
   resetDemo: () => void
+  /** Creates a studio owned by the signed-in account; returns its slug, or an error message. */
+  createStudio: (input: NewStudioInput) => { slug?: string; error?: string }
+  joinStudio: (studioId: string) => void
+  /** Runs a model action against one studio; returns an error message instead of throwing. */
+  applyTo: (studioId: string, action: (s: State) => State) => string | null
 }
 
-const StoreContext = createContext<Store | null>(null)
+const PlatformContext = createContext<PlatformStore | null>(null)
 
-export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<State>(load)
-  const [userId, setUserId] = useState<string | null>(() => {
+export function PlatformProvider({ children }: { children: ReactNode }) {
+  const [platform, setPlatform] = useState<Platform>(load)
+  const [accountId, setAccountId] = useState<string | null>(() => {
     try {
       return localStorage.getItem(SESSION_KEY)
     } catch {
@@ -56,38 +67,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   })
 
-  useEffect(() => save(state), [state])
+  useEffect(() => save(platform), [platform])
   useEffect(() => {
     try {
-      if (userId) localStorage.setItem(SESSION_KEY, userId)
+      if (accountId) localStorage.setItem(SESSION_KEY, accountId)
       else localStorage.removeItem(SESSION_KEY)
     } catch {
       // ignore
     }
-  }, [userId])
+  }, [accountId])
 
-  const apply = useCallback(
-    (action: (s: State) => State) => {
-      try {
-        setState(action(state))
-        return null
-      } catch (e) {
-        if (e instanceof BookingError) return e.message
-        throw e
-      }
-    },
-    [state],
+  const findByEmail = useCallback(
+    (email: string) => platform.accounts.find((a) => a.email.toLowerCase() === email.trim().toLowerCase()),
+    [platform.accounts],
   )
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const user = state.users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase())
-      if (user && !user.passwordHash) return 'Your studio added you. Choose "Create account" with this email to set a password.'
-      if (!user || user.passwordHash !== (await hashPassword(password))) return 'Email or password is incorrect.'
-      setUserId(user.id)
+      const account = findByEmail(email)
+      if (account && !account.passwordHash) return 'A studio added you. Choose "Create account" with this email to set a password.'
+      if (!account || account.passwordHash !== (await hashPassword(password))) return 'Email or password is incorrect.'
+      setAccountId(account.id)
       return null
     },
-    [state.users],
+    [findByEmail],
   )
 
   const signup = useCallback(
@@ -97,52 +100,99 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) return 'Enter a valid email.'
       if (password.length < 8) return 'Password must be at least 8 characters.'
       const passwordHash = await hashPassword(password)
-      const existing = state.users.find((u) => u.email.toLowerCase() === cleanEmail)
-      // Members added at the front desk have no password yet; signing up claims that record.
+      const existing = findByEmail(cleanEmail)
+      // People added by a studio have no password yet; signing up claims that account.
       if (existing?.passwordHash) return 'An account with that email exists.'
       if (existing) {
-        setState((s) => ({ ...s, users: s.users.map((u) => (u.id === existing.id ? { ...u, passwordHash } : u)) }))
-        setUserId(existing.id)
+        setPlatform((p) => ({ ...p, accounts: p.accounts.map((a) => (a.id === existing.id ? { ...a, passwordHash } : a)) }))
+        setAccountId(existing.id)
         return null
       }
-      const user: User = {
-        id: newId(),
-        name: name.trim(),
-        email: cleanEmail,
-        phone: '',
-        birthday: '',
-        passwordHash,
-        role: 'member',
-        joinedAt: new Date().toISOString(),
-      }
-      setState((s) => ({ ...s, users: [...s.users, user] }))
-      setUserId(user.id)
+      const account: Account = { id: newId(), name: name.trim(), email: cleanEmail, phone: '', birthday: '', passwordHash, joinedAt: new Date().toISOString() }
+      setPlatform((p) => ({ ...p, accounts: [...p.accounts, account] }))
+      setAccountId(account.id)
       return null
     },
-    [state.users],
+    [findByEmail],
   )
 
-  const value = useMemo<Store>(
+  const value = useMemo<PlatformStore>(
     () => ({
-      state,
-      user: state.users.find((u) => u.id === userId) ?? null,
-      apply,
+      platform,
+      account: platform.accounts.find((a) => a.id === accountId) ?? null,
       login,
       signup,
-      logout: () => setUserId(null),
+      logout: () => setAccountId(null),
       resetDemo: () => {
-        setState(seedState())
-        setUserId(null)
+        setPlatform(seedPlatform())
+        setAccountId(null)
+      },
+      createStudio: (input) => {
+        if (!accountId) return { error: 'Sign in to create a studio.' }
+        try {
+          const { platform: next, slug } = createStudio(platform, accountId, input)
+          setPlatform(next)
+          return { slug }
+        } catch (e) {
+          return { error: toError(e) }
+        }
+      },
+      joinStudio: (studioId) => accountId && setPlatform((p) => joinStudio(p, studioId, accountId)),
+      applyTo: (studioId, action) => {
+        try {
+          const current = platform.studios.find((s) => s.studio.id === studioId)
+          if (!current) throw new BookingError('Studio not found.')
+          const next = action(current)
+          setPlatform(syncAccounts({ ...platform, studios: platform.studios.map((s) => (s.studio.id === studioId ? next : s)) }, studioId))
+          return null
+        } catch (e) {
+          return toError(e)
+        }
       },
     }),
-    [state, userId, apply, login, signup],
+    [platform, accountId, login, signup],
   )
 
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
+  return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>
+}
+
+export function usePlatform() {
+  const p = useContext(PlatformContext)
+  if (!p) throw new Error('usePlatform must be used inside PlatformProvider')
+  return p
+}
+
+// ---------- One studio: what every studio page reads and writes ----------
+
+interface StudioStore {
+  state: State
+  /** The signed-in person's record in this studio (their role here), or null if they haven't joined. */
+  user: User | null
+  apply: (action: (s: State) => State) => string | null
+  logout: () => void
+  resetDemo: () => void
+}
+
+const StudioContext = createContext<StudioStore | null>(null)
+
+export function StudioScope({ studio, children }: { studio: State; children: ReactNode }) {
+  const { account, applyTo, logout, resetDemo } = usePlatform()
+  const id = studio.studio.id
+  const value = useMemo<StudioStore>(
+    () => ({
+      state: studio,
+      user: account ? studio.users.find((u) => u.id === account.id) ?? null : null,
+      apply: (action) => applyTo(id, action),
+      logout,
+      resetDemo,
+    }),
+    [studio, account, applyTo, id, logout, resetDemo],
+  )
+  return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>
 }
 
 export function useStore() {
-  const store = useContext(StoreContext)
-  if (!store) throw new Error('useStore must be used inside StoreProvider')
+  const store = useContext(StudioContext)
+  if (!store) throw new Error('useStore must be used inside a StudioScope')
   return store
 }

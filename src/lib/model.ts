@@ -8,6 +8,9 @@ export type BookingStatus = 'booked' | 'waitlisted' | 'cancelled' | 'late-cancel
 export type Attendance = 'attended' | 'no-show'
 
 export interface Studio {
+  id: string
+  /** URL-safe name used in the studio's links, e.g. "aligne-pilates". */
+  slug: string
   name: string
   location: string
   currency: string

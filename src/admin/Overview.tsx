@@ -1,5 +1,6 @@
 import { useState, type ComponentType } from 'react'
-import { AlertCircle, CalendarDays, Gauge, Star, Wallet } from 'lucide-react'
+import { AlertCircle, CalendarDays, CheckCircle2, Circle, Gauge, Star, Wallet } from 'lucide-react'
+import { link } from '../lib/router'
 import { initials } from '../ui'
 import { useStore } from '../lib/store'
 import { averageRating, spotsLeft } from '../lib/model'
@@ -32,6 +33,8 @@ export function Overview() {
         <h1>Overview</h1>
         <p className="muted">{now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </header>
+
+      <GettingStarted />
 
       <div className="stats">
         <Stat icon={CalendarDays} label="Classes today" value={String(today.length)} hint={`${today.reduce((n, s) => n + s.capacity - spotsLeft(state, s), 0)} members booked`} />
@@ -75,6 +78,7 @@ export function Overview() {
       )}
 
       <h2>Newest purchases</h2>
+      {recent.length === 0 && <p className="empty">No purchases yet. They'll show here as members buy packages.</p>}
       <ul className="rows">
         {recent.map((o) => (
           <li key={o.id} className="card row">
@@ -106,5 +110,37 @@ export function Stat({ icon: Icon, label, value, hint, onClick }: { icon?: Compo
     <button className="card stat clickable" onClick={onClick}>{body}</button>
   ) : (
     <div className="card stat">{body}</div>
+  )
+}
+
+/** Shown until a new studio has classes, packages and its first member. */
+function GettingStarted() {
+  const { state } = useStore()
+  const steps = [
+    { done: state.classTypes.length > 0 && state.staff.some((s) => s.role === 'Instructor'), label: 'Add your class types and instructors', href: link('/settings') },
+    { done: state.sessions.length > 0, label: 'Put classes on the schedule', href: link('/schedule?add=1') },
+    { done: state.packageOptions.some((p) => !p.hidden), label: 'Check the packages members can buy', href: link('/packages') },
+    { done: state.users.some((u) => u.role === 'member'), label: 'Share your booking link to get your first member', href: link('/settings') },
+  ]
+  if (steps.every((s) => s.done)) return null
+  const done = steps.filter((s) => s.done).length
+  return (
+    <div className="card getting-started">
+      <div className="split-head">
+        <div>
+          <h2 className="flush">Get {state.studio.name} ready for bookings</h2>
+          <p className="muted small">{done} of {steps.length} done</p>
+        </div>
+        <div className="fill wide"><span style={{ width: `${(done / steps.length) * 100}%` }} /></div>
+      </div>
+      <ol className="steps">
+        {steps.map((s) => (
+          <li key={s.label} className={s.done ? 'done' : ''}>
+            {s.done ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+            {s.done ? <span>{s.label}</span> : <a href={s.href}>{s.label}</a>}
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }

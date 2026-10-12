@@ -14,8 +14,20 @@ npm run build    # static build in dist/
 ```
 
 Demo accounts (password `demo1234`):
-- `owner@aerelle.test`: studio admin
-- `member@aerelle.test`: a member with Mat and Reformer packs
+- `owner@aerelle.test`: owns Aligné Pilates and Lumen Reformer Co.
+- `tidal@aerelle.test`: owns Tidal Yoga & Barre
+- `member@aerelle.test`: a member at Aligné Pilates and Lumen Reformer Co.
+
+## Many studios
+
+Aerelle hosts any number of studios. Each studio has its own classes, members, packages, orders, reviews and settings, and its own booking link (`#/s/<studio>/schedule`). Logins are shared: one account can own some studios and be a member at others.
+
+- **Studio directory** (`#/studios`): browse and search studios. Opening a studio while signed in makes you a member there.
+- **Create a studio** (`#/new-studio`): pick a Pilates, Yoga, Fitness or blank template to get starter class types and packages, then follow the setup checklist on Overview.
+- **Studio switcher**: in the sidebar (owners) or header (members).
+- Booking rules (`src/lib/model.ts`) run inside one studio; the platform layer (`src/lib/platform.ts`) handles accounts, studios and joining.
+
+Aligné Pilates uses its real class types, instructors and packages. Lumen Reformer Co. and Tidal Yoga & Barre are fictional demo studios.
 
 `#/login?next=%2Frating` signs in and lands on the rating page (studio rating for the owner, "rate your classes" for members).
 
@@ -52,7 +64,7 @@ AI booking assistant, funding, marketing email, merchandise shop, door access, w
 Live at https://aerelle.vercel.app. Every push to `main` deploys automatically through Vercel.
 
 Data lives in each browser's `localStorage` (`src/lib/store.tsx`), so it is not shared between people yet.
-1. Move `State` into a database (e.g. Firebase or Supabase) and run the pure functions in `src/lib/model.ts` server-side inside a transaction, so two members can't take the last spot.
+1. Move the `Platform` (accounts plus one `State` per studio) into a database (e.g. Firebase or Supabase), with security rules so owners can only change their own studios, and run the pure functions in `src/lib/model.ts` server-side inside a transaction, so two members can't take the last spot.
 2. Replace the demo password hashing with real auth (e.g. Firebase Auth).
 3. Connect a payment gateway (e.g. Stripe or a Malaysian provider such as Billplz or iPay88) in `Packs.tsx`, and only create the package from its payment webhook.
 4. Review capacities, durations and instructor-per-slot in the seed (`src/lib/seed.ts`). They are estimates.

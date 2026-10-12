@@ -1,18 +1,23 @@
 import { useState, type FormEvent } from 'react'
-import { useStore } from '../lib/store'
+import { usePlatform } from '../lib/store'
+import { studioBySlug } from '../lib/platform'
 import { safeNext, type Route } from '../lib/router'
 import { LazyScene } from '../three/LazyScene'
 import { Logo } from '../ui'
 
 export function Login({ route }: { route: Route }) {
-  const { state, login, signup } = useStore()
+  const { platform, login, signup } = usePlatform()
   const [mode, setMode] = useState<'login' | 'signup'>(route.path === '/signup' ? 'signup' : 'login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const next = safeNext(route.query.get('next'))
+  const nextParam = route.query.get('next')
+  const next = safeNext(nextParam, '/studios')
+  // Arriving from a studio's booking link: show that studio's name.
+  const slug = next.match(/^\/s\/([^/?]+)/)?.[1]
+  const studio = slug ? studioBySlug(platform, decodeURIComponent(slug))?.studio : undefined
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -37,14 +42,24 @@ export function Login({ route }: { route: Route }) {
         <div className="brand brand-lg">
           <Logo size={44} /> Aerelle
         </div>
-        <h1 className="display">
-          Move with <span className="grad">{state.studio.name}</span>
-        </h1>
-        <p className="auth-tag">Book reformer, mat and private sessions in seconds. Track your packages and tell us how class felt.</p>
+        {studio ? (
+          <h1 className="display">
+            Move with <span className="grad">{studio.name}</span>
+          </h1>
+        ) : (
+          <h1 className="display">
+            Book the studios <span className="grad">you love</span>
+          </h1>
+        )}
+        <p className="auth-tag">
+          {studio
+            ? `Book classes at ${studio.location} in seconds. Track your packages and tell the studio how class felt.`
+            : 'One account for every studio on Aerelle. Studio owners run their timetable, members and packages here too.'}
+        </p>
         <ul className="auth-points">
           <li>Live spots and waitlists</li>
           <li>Packages and memberships</li>
-          <li>{state.studio.cancelHours}h free cancellation</li>
+          <li>{studio ? `${studio.cancelHours}h free cancellation` : 'Many studios, one login'}</li>
         </ul>
       </div>
       <form className="card glass auth-card" onSubmit={submit}>
@@ -57,7 +72,7 @@ export function Login({ route }: { route: Route }) {
             Create account
           </button>
         </div>
-        {next !== '/schedule' && <p className="muted small">Sign in to continue to {pageName(next)}.</p>}
+        {nextParam && <p className="muted small">Sign in to continue to {studio ? `${studio.name}: ` : ''}{pageName(next)}.</p>}
         {mode === 'signup' && (
           <label>
             Name
@@ -94,8 +109,11 @@ export function Login({ route }: { route: Route }) {
 
 const PAGE_NAMES: Record<string, string> = {
   overview: 'the overview', schedule: 'the schedule', bookings: 'your bookings', rating: 'ratings', credits: 'packages',
-  members: 'members', packages: 'packages', reports: 'reports', settings: 'settings',
+  members: 'members', packages: 'packages', reports: 'reports', settings: 'settings', 'new-studio': 'create a studio', studios: 'studios',
 }
 
 /** "/members?tab=all" -> "members" */
-const pageName = (path: string) => PAGE_NAMES[path.slice(1).split('?')[0]] ?? 'your page'
+const pageName = (path: string) => {
+  const page = path.replace(/^\/s\/[^/]+/, '').slice(1).split('?')[0]
+  return PAGE_NAMES[page] ?? 'your page'
+}

@@ -20,7 +20,7 @@ const session = (id: string, group: string, startH: number, capacity = 1): Sessi
 function world(capacity = 1): State {
   let s: State = {
     version: 2,
-    studio: { name: 'Test', location: 'A', currency: 'RM', cancelHours: 12, email: '', phone: '', description: '' },
+    studio: { id: 'st', slug: 'test', name: 'Test', location: 'A', currency: 'RM', cancelHours: 12, email: '', phone: '', description: '' },
     classTypes: [],
     staff: [],
     users: [0, 1, 2].map((i) => ({ id: `u${i}`, name: `U${i}`, email: `u${i}@x.t`, phone: '', birthday: '', passwordHash: 'x', role: 'member' as const, joinedAt: NOW.toISOString() })),

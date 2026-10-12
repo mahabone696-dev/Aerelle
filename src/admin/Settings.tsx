@@ -30,8 +30,26 @@ function StudioForm() {
       }) ?? 'Saved.',
     )
   }
+  const bookingLink = `${location.origin}${location.pathname}#/s/${state.studio.slug}/schedule`
+  const [copied, setCopied] = useState(false)
   return (
     <>
+      <h2>Booking link</h2>
+      <div className="card link-card">
+        <p className="muted small">Share this with members. It opens your schedule; new people sign up and join {state.studio.name} in one step.</p>
+        <div className="copy-row">
+          <input readOnly value={bookingLink} aria-label="Booking link" onFocus={(e) => e.currentTarget.select()} />
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              navigator.clipboard?.writeText(bookingLink).then(() => setCopied(true), () => setCopied(false))
+            }}
+          >
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+      </div>
       <h2>Studio details</h2>
       <form className="card form-grid" onSubmit={submit}>
         <label>Studio name<input value={form.name} onChange={(e) => set('name', e.target.value)} /></label>

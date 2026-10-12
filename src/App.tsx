@@ -1,11 +1,12 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import {
-  BarChart3, Bell, CalendarDays, CalendarCheck, ChevronDown, LayoutDashboard, LogOut, Menu, Package, RotateCcw,
-  Search, Settings as SettingsIcon, Star, Ticket, Users, X,
+  BarChart3, Bell, CalendarDays, CalendarCheck, Check, ChevronDown, ChevronsUpDown, Compass, LayoutDashboard, LogOut, Menu,
+  Package, Plus, RotateCcw, Search, Settings as SettingsIcon, Star, Ticket, Users, X,
 } from 'lucide-react'
-import { useStore } from './lib/store'
-import { averageRating, canRate, classesLeft } from './lib/model'
-import { navigate, safeNext, useRoute, type Route } from './lib/router'
+import { StudioScope, usePlatform, useStore } from './lib/store'
+import { averageRating, canRate, classesLeft, type Role } from './lib/model'
+import { homeFor, roleIn, studioBySlug, studiosFor } from './lib/platform'
+import { link, navigate, safeNext, setStudioBase, useRoute, type Route } from './lib/router'
 import { money, plural } from './lib/format'
 import { Login } from './pages/Login'
 import { Schedule } from './pages/Schedule'
@@ -19,13 +20,15 @@ import { PackagesAdmin } from './admin/PackagesAdmin'
 import { Reports } from './admin/Reports'
 import { Reviews } from './admin/Reviews'
 import { Settings } from './admin/Settings'
+import { Directory } from './platform/Directory'
+import { NewStudio } from './platform/NewStudio'
 import { initials, Logo } from './ui'
 
-const PUBLIC = new Set(['/login', '/signup'])
-const PATHS = {
+const PATHS: Record<Role, Set<string>> = {
   owner: new Set(['/overview', '/schedule', '/members', '/packages', '/reports', '/rating', '/settings']),
   member: new Set(['/schedule', '/bookings', '/rating', '/credits']),
 }
+const studioHome = (slug: string, role: Role) => `/s/${slug}${role === 'owner' ? '/overview' : '/schedule'}`
 
 interface Tab {
   path: string
@@ -37,27 +40,43 @@ interface Tab {
 
 export function App() {
   const route = useRoute()
-  const { user } = useStore()
-  const isPublic = PUBLIC.has(route.path)
-  const home = user?.role === 'owner' ? '/overview' : '/schedule'
+  const { platform, account, joinStudio } = usePlatform()
+  setStudioBase(route.studio)
+  const studio = route.studio ? studioBySlug(platform, route.studio) : undefined
+  const role = account && studio ? roleIn(studio, account.id) : null
+  const home = account ? homeFor(platform, account.id) : '/studios'
+  const isLogin = route.full === '/login' || route.full === '/signup'
 
-  // Protected pages bounce to "/login?next=..." and come back after signing in.
   useEffect(() => {
-    if (!user && !isPublic) {
+    if (isLogin) {
+      if (account) navigate(safeNext(route.query.get('next'), home))
+    } else if (route.studio) {
       const query = route.query.toString()
-      const next = route.path === '/' ? '' : `?next=${encodeURIComponent(route.path + (query ? `?${query}` : ''))}`
-      navigate(`/login${next}`)
-    } else if (user && isPublic) {
-      navigate(safeNext(route.query.get('next'), home))
-    } else if (user && !PATHS[user.role].has(route.path)) {
-      // Unknown page, or one that belongs to the other role (e.g. a member link opened by the owner).
+      if (!studio) navigate('/studios')
+      else if (!account) navigate(`/login?next=${encodeURIComponent(route.full + (query ? `?${query}` : ''))}`)
+      else if (!role) joinStudio(studio.studio.id) // opening a studio you're not in yet makes you a member
+      else if (!PATHS[role].has(route.path)) navigate(studioHome(studio.studio.slug, role))
+    } else if (route.full === '/new-studio') {
+      if (!account) navigate(`/login?next=${encodeURIComponent('/new-studio')}`)
+    } else if (route.full !== '/studios') {
       navigate(home)
     }
-  }, [user, route, isPublic, home])
+  }, [route, account, studio, role, home, isLogin, joinStudio])
 
-  if (!user || isPublic) return <Login route={route} />
-  return user.role === 'owner' ? <AdminShell route={route} /> : <MemberShell route={route} />
+  if (isLogin) return <Login route={route} />
+  if (studio && role && PATHS[role].has(route.path)) {
+    return (
+      <StudioScope studio={studio}>
+        {role === 'owner' ? <AdminShell route={route} /> : <MemberShell route={route} />}
+      </StudioScope>
+    )
+  }
+  if (route.full === '/studios') return <Directory />
+  if (route.full === '/new-studio' && account) return <NewStudio />
+  return null // redirecting
 }
+
+// ---------- Studio owner ----------
 
 function AdminShell({ route }: { route: Route }) {
   const { state } = useStore()
@@ -80,13 +99,7 @@ function AdminShell({ route }: { route: Route }) {
     <div className="admin">
       <aside className={`sidebar ${drawer ? 'open' : ''}`} aria-label="Main navigation">
         <div className="sidebar-head">
-          <a className="brand" href="#/overview">
-            <Logo size={34} />
-            <span className="brand-text">
-              <span className="brand-name">{state.studio.name}</span>
-              <span className="brand-sub">{state.studio.location}</span>
-            </span>
-          </a>
+          <StudioSwitcher />
           <button className="icon-btn only-mobile" onClick={() => setDrawer(false)} aria-label="Close menu"><X size={18} /></button>
         </div>
         <nav>
@@ -108,12 +121,12 @@ function AdminShell({ route }: { route: Route }) {
           <button className="icon-btn only-mobile" onClick={() => setDrawer(true)} aria-label="Open menu"><Menu size={20} /></button>
           <GlobalSearch />
           <div className="header-actions">
-            <a className="btn primary hide-sm" href="#/schedule?add=1"><CalendarCheck size={16} /> Add class</a>
+            <a className="btn primary hide-sm" href={link('/schedule?add=1')}><CalendarCheck size={16} /> Add class</a>
             <Alerts />
-            <UserMenu />
+            <UserMenu role="owner" />
           </div>
         </header>
-        <main className="admin-content" key={route.path}>
+        <main className="admin-content" key={route.full}>
           {current?.render()}
         </main>
       </div>
@@ -124,11 +137,51 @@ function AdminShell({ route }: { route: Route }) {
 function NavItem({ tab, active }: { tab: Tab; active: boolean }) {
   const Icon = tab.icon
   return (
-    <a href={`#${tab.path}`} className="nav-item" aria-current={active ? 'page' : undefined}>
+    <a href={link(tab.path)} className="nav-item" aria-current={active ? 'page' : undefined}>
       <Icon size={18} />
       <span>{tab.label}</span>
       {tab.badge !== undefined && <span className="nav-badge"><Star size={11} /> {tab.badge}</span>}
     </a>
+  )
+}
+
+/** Shows the current studio; opens a list of the person's other studios. */
+function StudioSwitcher() {
+  const { platform, account } = usePlatform()
+  const { state } = useStore()
+  if (!account) return null
+  const { owned, joined } = studiosFor(platform, account.id)
+  const current = state.studio
+  const item = (s: (typeof owned)[number], role: Role) => (
+    <a key={s.studio.id} href={`#${studioHome(s.studio.slug, role)}`} className="menu-item switch-item" onClick={(e) => closeDropdown(e.currentTarget)}>
+      <span className="studio-mark">{initials(s.studio.name)}</span>
+      <span className="switch-text">
+        <strong>{s.studio.name}</strong>
+        <span className="muted tiny">{s.studio.location}</span>
+      </span>
+      {s.studio.id === current.id && <Check size={16} className="switch-check" />}
+    </a>
+  )
+  return (
+    <details className="dropdown switcher">
+      <summary className="switcher-btn" aria-label="Switch studio">
+        <span className="studio-mark lg">{initials(current.name)}</span>
+        <span className="brand-text">
+          <span className="brand-name">{current.name}</span>
+          <span className="brand-sub">{current.location}</span>
+        </span>
+        <ChevronsUpDown size={16} className="muted" />
+      </summary>
+      <div className="dropdown-menu card switcher-menu">
+        {owned.length > 0 && <p className="dropdown-title">Studios you run</p>}
+        {owned.map((s) => item(s, 'owner'))}
+        {joined.length > 0 && <p className="dropdown-title">Studios you book at</p>}
+        {joined.map((s) => item(s, 'member'))}
+        <div className="menu-sep" />
+        <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Browse studios</a>
+        <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>
+      </div>
+    </details>
   )
 }
 
@@ -150,7 +203,7 @@ function GlobalSearch() {
       <Search size={16} />
       <input
         type="search"
-        placeholder="Search members by name, email or phone"
+        placeholder={`Search ${state.studio.name} members`}
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && hits[0] && open(hits[0].id)}
@@ -183,12 +236,12 @@ function Alerts() {
   const low = reviews.filter((r) => r.stars <= 3)
   const items = [
     unpaid.length > 0 && {
-      href: '#/members?tab=unpaid',
+      href: link('/members?tab=unpaid'),
       title: plural(unpaid.length, 'unpaid package'),
       text: `${money(state.studio.currency, unpaid.reduce((n, o) => n + o.net, 0))} outstanding`,
     },
-    reviews.length > 0 && { href: '#/rating', title: `${plural(reviews.length, 'new review')} this week`, text: 'See what members said' },
-    low.length > 0 && { href: '#/rating', title: `${plural(low.length, 'review')} of 3★ or less`, text: 'Worth a follow-up' },
+    reviews.length > 0 && { href: link('/rating'), title: `${plural(reviews.length, 'new review')} this week`, text: 'See what members said' },
+    low.length > 0 && { href: link('/rating'), title: `${plural(low.length, 'review')} of 3★ or less`, text: 'Worth a follow-up' },
   ].filter(Boolean) as { href: string; title: string; text: string }[]
 
   return (
@@ -214,21 +267,25 @@ function Alerts() {
   )
 }
 
-function UserMenu() {
-  const { user, logout, resetDemo } = useStore()
-  if (!user) return null
+/** Account menu; `role` is the person's role in the studio being shown, if any. */
+export function UserMenu({ role }: { role?: Role }) {
+  const { account, logout, resetDemo } = usePlatform()
+  if (!account) return <a className="btn primary" href={`#/login?next=${encodeURIComponent(window.location.hash.slice(1) || '/studios')}`}>Sign in</a>
   return (
     <details className="dropdown">
       <summary className="user-chip" aria-label="Account">
-        <span className="avatar">{initials(user.name)}</span>
+        <span className="avatar">{initials(account.name)}</span>
         <span className="hide-sm">
-          <strong className="small block">{user.name}</strong>
-          <span className="muted tiny">{user.role === 'owner' ? 'Owner' : 'Member'}</span>
+          <strong className="small block">{account.name}</strong>
+          <span className="muted tiny">{role === 'owner' ? 'Owner' : role === 'member' ? 'Member' : account.email}</span>
         </span>
         <ChevronDown size={16} className="hide-sm" />
       </summary>
       <div className="dropdown-menu card">
-        <p className="dropdown-title">{user.email}</p>
+        <p className="dropdown-title">{account.email}</p>
+        <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Browse studios</a>
+        <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>
+        <div className="menu-sep" />
         <button className="menu-item" onClick={() => confirm('Reset all demo data?') && resetDemo()}>
           <RotateCcw size={16} /> Reset demo data
         </button>
@@ -237,6 +294,8 @@ function UserMenu() {
     </details>
   )
 }
+
+// ---------- Member ----------
 
 function MemberShell({ route }: { route: Route }) {
   const { state, user } = useStore()
@@ -259,18 +318,12 @@ function MemberShell({ route }: { route: Route }) {
     <div className="member">
       <header className="member-header">
         <div className="member-header-inner">
-          <a className="brand" href="#/schedule">
-            <Logo size={32} />
-            <span className="brand-text">
-              <span className="brand-name">{state.studio.name}</span>
-              <span className="brand-sub">{state.studio.location}</span>
-            </span>
-          </a>
+          <StudioSwitcher />
           <nav aria-label="Main" className="member-nav">
             {tabs.map((t) => {
               const Icon = t.icon
               return (
-                <a key={t.path} href={`#${t.path}`} aria-current={route.path === t.path ? 'page' : undefined}>
+                <a key={t.path} href={link(t.path)} aria-current={route.path === t.path ? 'page' : undefined}>
                   <Icon size={17} />
                   <span>{t.label}</span>
                   {!!t.badge && <span className="count">{t.badge}</span>}
@@ -279,14 +332,14 @@ function MemberShell({ route }: { route: Route }) {
             })}
           </nav>
           <div className="header-actions">
-            <a className="credits" href="#/credits" title="Classes left across your active packages">
+            <a className="credits" href={link('/credits')} title="Classes left across your active packages at this studio">
               <Ticket size={15} /> {plural(classesLeft(state, user.id), 'class', 'classes')} left
             </a>
-            <UserMenu />
+            <UserMenu role="member" />
           </div>
         </div>
       </header>
-      <main className="member-content" key={route.path}>
+      <main className="member-content" key={route.full}>
         {current?.render()}
       </main>
     </div>
