@@ -7,7 +7,6 @@ It ships pre-loaded with Aligné Pilates' class types, instructors, location (Ho
 ## Run
 
 ```bash
-cd booking-app
 npm install
 npm run dev      # http://localhost:5173
 npm test         # rules + reports unit tests
@@ -50,8 +49,10 @@ AI booking assistant, funding, marketing email, merchandise shop, door access, w
 
 ## Going to production
 
+Live at https://aerelle.vercel.app. Every push to `main` deploys automatically through Vercel.
+
 Data lives in each browser's `localStorage` (`src/lib/store.tsx`), so it is not shared between people yet.
-1. Move `State` into a database (the parent repo already uses Firebase) and run the pure functions in `src/lib/model.ts` server-side inside a transaction, so two members can't take the last spot.
+1. Move `State` into a database (e.g. Firebase or Supabase) and run the pure functions in `src/lib/model.ts` server-side inside a transaction, so two members can't take the last spot.
 2. Replace the demo password hashing with real auth (e.g. Firebase Auth).
 3. Connect a payment gateway (e.g. Stripe or a Malaysian provider such as Billplz or iPay88) in `Packs.tsx`, and only create the package from its payment webhook.
 4. Review capacities, durations and instructor-per-slot in the seed (`src/lib/seed.ts`). They are estimates.
