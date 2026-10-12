@@ -1,0 +1,151 @@
+rules_version = '2';
+
+// Aerelle access rules. Every studio is isolated: its members, bookings, packages and orders are readable
+// only by that studio's owners and by the member they belong to. Public: studio profiles, the timetable
+// (with booked/waitlist account ids, no names) and ratings.
+//
+// Layout
+//   accounts/{uid}                       a person's own profile
+//   slugs/{slug}                         reserves a studio's link name
+//   studios/{sid}                        profile, class types, staff, package catalogue, ownerUids
+//   studios/{sid}/sessions/{id}          timetable; booked[] and waitlist[] hold account ids
+//   studios/{sid}/members/{id}           a person's record at this studio (id = uid, or a placeholder
+//                                         for someone the studio added who hasn't signed up yet)
+//   studios/{sid}/bookings|packages|orders|ratings|promos/{id}
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function verifiedEmail() {
+      return signedIn() && request.auth.token.email_verified == true ? request.auth.token.email.lower() : null;
+    }
+    function studio(sid) { return get(/databases/$(database)/documents/studios/$(sid)).data; }
+    function isOwner(sid) { return signedIn() && uid() in studio(sid).ownerUids; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function unchanged(key) { return !(key in changed()); }
+
+    // A record that belongs to a placeholder member the signed-in person may take over: same verified email.
+    function claimable(sid, memberId) {
+      let m = get(/databases/$(database)/documents/studios/$(sid)/members/$(memberId)).data;
+      return verifiedEmail() != null && m.email.lower() == verifiedEmail() && m.get('claimed', false) == false;
+    }
+    // Moving a record from a placeholder member to the signed-in account (and nothing else).
+    // The package's order is the caller's own, unpaid, and saved in the same write.
+    function newUnpaidOrderOf(sid, orderId) {
+      let o = getAfter(/databases/$(database)/documents/studios/$(sid)/orders/$(orderId)).data;
+      return o.userId == uid() && o.paid == false && !exists(/databases/$(database)/documents/studios/$(sid)/orders/$(orderId));
+    }
+    function isClaim(sid) {
+      return changed().hasOnly(['userId']) && request.resource.data.userId == uid() && claimable(sid, resource.data.userId);
+    }
+
+    match /accounts/{accountId} {
+      allow read, write: if signedIn() && uid() == accountId;
+    }
+
+    match /slugs/{slug} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['studioId', 'createdBy']) && request.resource.data.createdBy == uid();
+    }
+
+    match /studios/{sid} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.ownerUids == [uid()] && request.resource.data.id == sid;
+      allow update: if isOwner(sid) && request.resource.data.ownerUids.size() > 0 && unchanged('id') && unchanged('slug');
+      allow delete: if false;
+
+      // Timetable. Owners manage it; a member may only add or remove themselves.
+      match /sessions/{id} {
+        allow read: if true;
+        allow create, delete: if isOwner(sid);
+        allow update: if isOwner(sid) || (signedIn() && changed().hasOnly(['booked', 'waitlist']) && selfOnly());
+
+        function selfOnly() {
+          let before = resource.data;
+          let after = request.resource.data;
+          return listChange(before.booked, after.booked) && listChange(before.waitlist, after.waitlist)
+            && after.booked.size() <= before.capacity;
+        }
+        // Unchanged, the caller appended themselves once, or the caller removed themselves.
+        function listChange(before, after) {
+          return after == before
+            || (!(uid() in before) && after == before.concat([uid()]))
+            || ((uid() in before) && after == before.removeAll([uid()]));
+        }
+      }
+
+      match /members/{memberId} {
+        allow read: if isOwner(sid) || (signedIn() && memberId == uid())
+          || (verifiedEmail() != null && resource.data.email.lower() == verifiedEmail());
+        allow create: if isOwner(sid)
+          || (signedIn() && memberId == uid() && request.resource.data.role == 'member' && request.resource.data.id == uid());
+        allow update: if isOwner(sid)
+          || (signedIn() && memberId == uid() && unchanged('role') && unchanged('id'));
+        // A placeholder can be removed by the person claiming it, once its records are moved.
+        allow delete: if isOwner(sid) || (memberId != uid() && claimable(sid, memberId));
+      }
+
+      match /bookings/{id} {
+        allow read: if isOwner(sid) || (signedIn() && resource.data.userId == uid()) || claimable(sid, resource.data.userId);
+        allow create: if isOwner(sid) || (signedIn() && request.resource.data.userId == uid());
+        allow update: if isOwner(sid)
+          || (signedIn() && resource.data.userId == uid() && unchanged('userId') && unchanged('sessionId') && unchanged('attendance'))
+          || isClaim(sid);
+        allow delete: if isOwner(sid);
+      }
+
+      // Members can't give themselves classes: a new package from a member must be unpaid-backed (see orders),
+      // start full, and afterwards only its remaining count may move within 0..total.
+      match /packages/{id} {
+        allow read: if isOwner(sid) || (signedIn() && resource.data.userId == uid()) || claimable(sid, resource.data.userId);
+        allow create: if isOwner(sid)
+          || (signedIn() && request.resource.data.userId == uid() && request.resource.data.remaining == request.resource.data.total
+              && newUnpaidOrderOf(sid, request.resource.data.orderId));
+        allow update: if isOwner(sid)
+          || (signedIn() && resource.data.userId == uid() && changed().hasOnly(['remaining'])
+              && request.resource.data.remaining >= 0 && request.resource.data.remaining <= resource.data.total)
+          || isClaim(sid);
+        allow delete: if isOwner(sid);
+      }
+
+      // Online orders from members are always unpaid until the studio marks them paid.
+      match /orders/{id} {
+        allow read: if isOwner(sid) || (signedIn() && resource.data.userId == uid()) || claimable(sid, resource.data.userId);
+        allow create: if isOwner(sid)
+          || (signedIn() && request.resource.data.userId == uid() && request.resource.data.paid == false && request.resource.data.source == 'Online');
+        allow update: if isOwner(sid) || isClaim(sid);
+        allow delete: if isOwner(sid);
+      }
+
+      match /ratings/{id} {
+        allow read: if true;
+        allow create: if signedIn() && request.resource.data.userId == uid()
+          && request.resource.data.stars is int && request.resource.data.stars >= 1 && request.resource.data.stars <= 5;
+        allow update: if isOwner(sid) || isClaim(sid);
+        allow delete: if isOwner(sid);
+      }
+
+      match /promos/{id} {
+        allow read: if signedIn();
+        allow create, delete: if isOwner(sid);
+        // Members may only count a use when they redeem it.
+        allow update: if isOwner(sid)
+          || (signedIn() && changed().hasOnly(['uses']) && request.resource.data.uses == resource.data.uses + 1 && resource.data.active == true);
+      }
+    }
+
+    // Searches across all studios. A person can find their own memberships (and placeholders to claim by
+    // verified email); anyone can search the public timetable and ratings for the studio directory.
+    match /{path=**}/members/{memberId} {
+      allow read: if (signedIn() && resource.data.id == uid()) || (verifiedEmail() != null && resource.data.email == verifiedEmail());
+    }
+    match /{path=**}/sessions/{id} {
+      allow read: if true;
+    }
+    match /{path=**}/ratings/{id} {
+      allow read: if true;
+    }
+  }
+}
