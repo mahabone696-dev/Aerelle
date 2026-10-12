@@ -880,3 +880,50 @@ main.platform-content.narrow { max-width: 760px; }
 .notice.soft { background: #fff; color: var(--ink); border: 1px solid var(--baby-300); }
 .forgot { justify-self: start; text-align: left; font-weight: 600; }
 .spinner.sm { width: 16px; height: 16px; border-width: 2px; display: inline-block; vertical-align: -3px; }
+
+/* ---------- Landing: tablet & phone polish ---------- */
+@media (max-width: 1000px) {
+  .land-nav-inner .actions { margin-left: auto; }
+  /* Single-column hero: centre the copy and the product preview. */
+  .hero-copy { justify-items: center; text-align: center; }
+  .hero-copy .eyebrow { justify-self: center; }
+  .lead { margin-inline: auto; }
+  .hero-copy .actions, .hero-ticks { justify-content: center; }
+  .hero-mock { width: 100%; max-width: 580px; margin: 1.5rem auto 0; }
+  .mock-float.one { left: 12px; bottom: -60px; }
+  .mock-float.two { right: 12px; }
+  /* Problem → fix cards as rows: what hurts on the left, how Aerelle fixes it on the right. */
+  .pains { grid-template-columns: 1fr; max-width: 720px; margin-inline: auto; }
+  .pain { grid-template-columns: 1fr 1fr; align-items: center; gap: 1.5rem; }
+  .how { gap: 0.8rem; }
+}
+@media (max-width: 720px) {
+  .land-nav-inner { gap: 0.75rem; height: 64px; }
+  .land-hero { margin-top: -64px; padding-top: 96px; }
+  .land-hero .scene.ready { opacity: 0.55; } /* keep the 3D shapes from competing with the headline */
+  .hero-copy { gap: 1rem; }
+  .hero-copy .actions { flex-direction: column; align-items: stretch; width: 100%; max-width: 360px; }
+  .hero-copy .actions .btn { width: 100%; }
+  .hero-ticks { gap: 0.35rem 1rem; font-size: 0.82rem; }
+  .mock-float { font-size: 0.78rem; padding: 0.55rem 0.7rem; }
+  .mock-float.two { top: -34px; }
+  .pain { grid-template-columns: 1fr; gap: 0.6rem; }
+  .feature-grid { gap: 0.7rem; }
+  .vertical-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .vertical { padding: 0.75rem; gap: 0.6rem; font-size: 0.88rem; }
+  .vertical .feature-icon { width: 34px; height: 34px; border-radius: 10px; flex: none; }
+  .vertical:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .how li { grid-template-columns: auto 1fr; column-gap: 0.9rem; align-items: start; }
+  .how li .step { grid-row: span 2; }
+  .price-card { padding: 1.4rem; gap: 1.4rem; }
+  .price-card > div { justify-items: stretch; }
+  .price-card .btn { width: 100%; }
+  .cta-inner .actions { flex-direction: column; align-items: stretch; width: 100%; max-width: 360px; }
+  .cta-inner .btn { width: 100%; }
+  .footer-inner { flex-direction: column; text-align: center; }
+  .footer-inner nav { flex-wrap: wrap; justify-content: center; }
+}
+@media (max-width: 380px) {
+  .land-nav .brand-name { display: none; }
+  .vertical-grid { grid-template-columns: 1fr; }
+}
