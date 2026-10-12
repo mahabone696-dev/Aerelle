@@ -7,14 +7,15 @@
   --baby-300: #c4e6fb;
   --baby-400: #a9daf8;
   --baby-500: #86c9f3;
-  --blue-700: #2a7bbd;
+  --blue-700: #5aaee3;
+  --link: #3b90cc;
   --navy: #0e2a44;
 
   --bg: #f4faff;
   --ink: #0e2a44;
   --muted: #5b7690;
   --line: rgb(127 198 242 / 0.28);
-  --accent: var(--blue-700);
+  --accent: var(--link);
   --accent-soft: var(--baby-100);
   --warn: #c27a12;
   --danger: #d23f55;
@@ -229,7 +230,7 @@ main.wide { max-width: 1200px; }
 .session:hover, .pack:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
 .time { display: grid; padding-right: 1rem; border-right: 1px solid var(--line); }
 .time strong { font-size: 1.05rem; white-space: nowrap; }
-.tag { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--blue-700); font-weight: 800; }
+.tag { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--link); font-weight: 800; }
 .info h3 { margin: 0.1rem 0; }
 .cta { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; }
 .cta .tiny { max-width: 20ch; text-align: right; }
@@ -474,19 +475,19 @@ label.check { display: inline-flex; flex-direction: row; align-items: center; ga
 :root {
   --glass: #ffffff;
   --glass-strong: #ffffff;
-  --glass-border: #e3edf5;
-  --line: #e8eff5;
-  --surface-2: #f7fafd;
+  --glass-border: #e4f0f9;
+  --line: #eaf3fa;
+  --surface-2: #f6fbfe;
   --shadow: 0 1px 2px rgb(14 42 68 / 0.04), 0 1px 3px rgb(14 42 68 / 0.03);
   --shadow-lift: 0 4px 6px -2px rgb(14 42 68 / 0.05), 0 12px 24px -8px rgb(56 140 205 / 0.18);
   --radius: 14px;
-  --c-mat: #3b9be0;
-  --c-reformer: #7c6ff0;
-  --c-private: #1f5fa8;
-  --c-duet: #22a58f;
-  --c-wellness: #e0789f;
+  --c-mat: #7cc4f0;
+  --c-reformer: #a9a0f6;
+  --c-private: #6fa6e2;
+  --c-duet: #62c9b5;
+  --c-wellness: #f0a6c1;
 }
-body { background: #f4f8fb; }
+body { background: #f7fbfe; }
 .card { backdrop-filter: none; -webkit-backdrop-filter: none; }
 .table-wrap, .day, .tabs, .banner, .auth-points li { backdrop-filter: none; -webkit-backdrop-filter: none; }
 .block { display: block; }
@@ -532,7 +533,7 @@ h2 { font-size: 1rem; }
 .sidebar-head { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 14px; border-bottom: 1px solid var(--line); }
 .sidebar .brand-name { max-width: 15ch; }
 .sidebar nav { display: grid; gap: 2px; overflow-y: auto; padding-top: 6px; }
-.nav-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: #8aa1b5; font-weight: 700; padding: 14px 12px 6px; }
+.nav-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: #93b0c6; font-weight: 700; padding: 14px 12px 6px; }
 .nav-item {
   display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem; border-radius: 10px; color: var(--muted);
   text-decoration: none; font-weight: 600; font-size: 0.92rem; position: relative; transition: background 0.15s, color 0.15s;
@@ -615,7 +616,7 @@ main.member-content { max-width: 960px; margin: 0 auto; padding: 28px 24px 64px;
 th { background: var(--surface-2); }
 .table-wrap { box-shadow: var(--shadow); }
 .banner { border-radius: 10px; }
-input, select, textarea { border-radius: 10px; border-color: #dbe7f0; background: #fff; }
+input, select, textarea { border-radius: 10px; border-color: #d9eaf6; background: #fff; }
 .detail { top: 88px; }
 
 /* ---------- Schedule calendar ---------- */
@@ -645,7 +646,7 @@ input, select, textarea { border-radius: 10px; border-color: #dbe7f0; background
   padding: 2px 6px; border-radius: 5px; border-left: 3px solid; color: var(--ink);
 }
 .cal-chip b { font-weight: 700; }
-.cal-more { font-size: 0.72rem; color: var(--blue-700); font-weight: 700; padding-left: 6px; }
+.cal-more { font-size: 0.72rem; color: var(--link); font-weight: 700; padding-left: 6px; }
 .c-mat { --c: var(--c-mat); }
 .c-reformer { --c: var(--c-reformer); }
 .c-private { --c: var(--c-private); }
@@ -708,7 +709,7 @@ td.actions > * + * { margin-left: 0.4rem; }
 .switch-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .switch-check { color: var(--blue-700); }
 .menu-sep { height: 1px; background: var(--line); margin: 4px 0; }
-.badge.owner { background: #eef6ff; border-color: var(--baby-300); color: var(--blue-700); }
+.badge.owner { background: var(--baby-50); border-color: var(--baby-300); color: var(--link); }
 
 .platform { min-height: 100vh; }
 main.platform-content { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; animation: fadein 0.35s ease both; }
@@ -777,7 +778,7 @@ main.platform-content.narrow { max-width: 760px; }
 .land-hero .land-wrap { position: relative; z-index: 1; }
 .hero-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 3rem; align-items: center; }
 .hero-copy { display: grid; gap: 1.2rem; animation: rise 0.7s var(--ease) both; }
-.eyebrow { display: inline-flex; align-items: center; gap: 0.4rem; justify-self: start; font-size: 0.8rem; font-weight: 700; color: var(--blue-700); background: rgb(255 255 255 / 0.8); border: 1px solid var(--baby-200); padding: 0.3rem 0.75rem; border-radius: 999px; }
+.eyebrow { display: inline-flex; align-items: center; gap: 0.4rem; justify-self: start; font-size: 0.8rem; font-weight: 700; color: var(--link); background: rgb(255 255 255 / 0.8); border: 1px solid var(--baby-200); padding: 0.3rem 0.75rem; border-radius: 999px; }
 .lead { font-size: 1.2rem; color: var(--muted); max-width: 36ch; }
 .hero-ticks { list-style: none; display: flex; flex-wrap: wrap; gap: 1rem; padding: 0; margin: 0; color: var(--muted); font-weight: 600; font-size: 0.88rem; }
 .hero-ticks li { display: inline-flex; align-items: center; gap: 0.35rem; }
@@ -803,7 +804,7 @@ main.platform-content.narrow { max-width: 760px; }
 
 .land-section { padding: 88px 0; }
 .land-section.alt { background: var(--surface-2); }
-.kicker { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.75rem; font-weight: 800; color: var(--blue-700); margin-bottom: 0.6rem; text-align: center; }
+.kicker { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.75rem; font-weight: 800; color: var(--link); margin-bottom: 0.6rem; text-align: center; }
 .section-title { font-size: clamp(1.6rem, 3.2vw, 2.4rem); text-align: center; margin: 0 auto 0.6rem; max-width: 22ch; letter-spacing: -0.03em; }
 .section-sub { text-align: center; margin-bottom: 2rem; }
 .land-section .section-title + .pains, .land-section .section-title + .feature-grid, .land-section .section-title + .how, .land-section .section-title + .price-card, .land-section .section-title + .faq { margin-top: 2.5rem; }
