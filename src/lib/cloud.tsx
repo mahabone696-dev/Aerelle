@@ -92,6 +92,9 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<Record<string, SessionDoc[]> | null>(null)
   const [ratings, setRatings] = useState<Record<string, Rating[]>>({})
   const [mine, setMine] = useState<Record<string, User> | null>(null)
+  // Which account `mine` belongs to. Right after signing in, `mine` still holds the signed-out value for one
+  // render; without this the app would route the new account as if it had no studios.
+  const [mineUid, setMineUid] = useState<string | null>(null)
   const [activeSid, setActiveSid] = useState<string | null>(null)
   const [active, setActive] = useState<Active | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -149,10 +152,14 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
       onSnapshot(doc(db, 'accounts', uid), (d) => setAccountDoc(d.exists() ? (d.data() as Account) : null)),
       onSnapshot(
         query(collectionGroup(db, 'members'), where('id', '==', uid)),
-        (snap) => setMine(Object.fromEntries(snap.docs.map((d) => [d.ref.parent.parent!.id, toUser(d.data())]))),
+        (snap) => {
+          setMine(Object.fromEntries(snap.docs.map((d) => [d.ref.parent.parent!.id, toUser(d.data())])))
+          setMineUid(uid)
+        },
         (e) => {
           // Never leave the app waiting: carry on without memberships and say so.
           setMine({})
+          setMineUid(uid)
           setNotice(friendly(e))
         },
       ),
@@ -365,7 +372,7 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
     }
   }, [uid, verified, account?.email])
 
-  const ready = authReady && !!studios && !!sessions && (!uid || !!mine)
+  const ready = authReady && !!studios && !!sessions && (!uid || (!!mine && mineUid === uid))
   const activeReady =
     !activeSid || !uid || !studios?.[activeSid]
       ? true

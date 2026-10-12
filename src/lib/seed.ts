@@ -354,3 +354,6 @@ export function seedPlatform(now = new Date()): Platform {
 
 /** The Aligné Pilates studio on its own (used by tests). */
 export const seedState = (now = new Date()) => seedStudio(ALIGNE, now)
+
+/** Aligné Pilates setup (class types, instructors, packages, timetable), used by scripts/setup-aligne.ts. */
+export const ALIGNE_CONFIG = ALIGNE
