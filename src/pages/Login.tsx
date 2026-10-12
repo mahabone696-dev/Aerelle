@@ -3,7 +3,7 @@ import { usePlatform } from '../lib/store'
 import { studioBySlug } from '../lib/platform'
 import { safeNext, type Route } from '../lib/router'
 import { LazyScene } from '../three/LazyScene'
-import { Logo } from '../ui'
+import { initials, Logo } from '../ui'
 
 export function Login({ route }: { route: Route }) {
   const { platform, login, signup } = usePlatform()
@@ -39,27 +39,19 @@ export function Login({ route }: { route: Route }) {
     <div className="auth">
       <LazyScene variant="hero" />
       <div className="auth-copy">
-        <div className="brand brand-lg">
-          <Logo size={44} /> Aerelle
+        <div>
+          <a className="brand brand-lg" href="#/"><Logo size={44} /> Aerelle</a>
         </div>
-        {studio ? (
-          <h1 className="display">
-            Move with <span className="grad">{studio.name}</span>
-          </h1>
-        ) : (
-          <h1 className="display">
-            Book the studios <span className="grad">you love</span>
-          </h1>
-        )}
+        <h1 className="display">
+          Fill every class. <span className="grad">Keep every member.</span>
+        </h1>
         <p className="auth-tag">
-          {studio
-            ? `Book classes at ${studio.location} in seconds. Track your packages and tell the studio how class felt.`
-            : 'One account for every studio on Aerelle. Studio owners run their timetable, members and packages here too.'}
+          One account for every studio on Aerelle: yoga, Pilates, dance, martial arts, HIIT and more. Book as a member, or run your own studio.
         </p>
         <ul className="auth-points">
           <li>Live spots and waitlists</li>
           <li>Packages and memberships</li>
-          <li>{studio ? `${studio.cancelHours}h free cancellation` : 'Many studios, one login'}</li>
+          <li>Many studios, one login</li>
         </ul>
       </div>
       <form className="card glass auth-card" onSubmit={submit}>
@@ -72,7 +64,14 @@ export function Login({ route }: { route: Route }) {
             Create account
           </button>
         </div>
-        {nextParam && <p className="muted small">Sign in to continue to {studio ? `${studio.name}: ` : ''}{pageName(next)}.</p>}
+        {studio ? (
+          <p className="continue-to">
+            <span className="studio-mark">{initials(studio.name)}</span>
+            <span>Continue to <strong>{studio.name}</strong><span className="muted tiny block">{studio.location}</span></span>
+          </p>
+        ) : (
+          nextParam && <p className="muted small">Sign in to continue to {pageName(next)}.</p>
+        )}
         {mode === 'signup' && (
           <label>
             Name

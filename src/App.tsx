@@ -22,6 +22,7 @@ import { Reviews } from './admin/Reviews'
 import { Settings } from './admin/Settings'
 import { Directory } from './platform/Directory'
 import { NewStudio } from './platform/NewStudio'
+import { Landing } from './platform/Landing'
 import { initials, Logo } from './ui'
 
 const PATHS: Record<Role, Set<string>> = {
@@ -58,7 +59,7 @@ export function App() {
       else if (!PATHS[role].has(route.path)) navigate(studioHome(studio.studio.slug, role))
     } else if (route.full === '/new-studio') {
       if (!account) navigate(`/login?next=${encodeURIComponent('/new-studio')}`)
-    } else if (route.full !== '/studios') {
+    } else if (route.full !== '/studios' && route.full !== '/') {
       navigate(home)
     }
   }, [route, account, studio, role, home, isLogin, joinStudio])
@@ -71,6 +72,7 @@ export function App() {
       </StudioScope>
     )
   }
+  if (route.full === '/') return <Landing />
   if (route.full === '/studios') return <Directory />
   if (route.full === '/new-studio' && account) return <NewStudio />
   return null // redirecting

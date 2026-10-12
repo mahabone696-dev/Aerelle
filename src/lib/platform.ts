@@ -105,7 +105,7 @@ export function syncAccounts(p: Platform, studioId: string): Platform {
 
 // ---------- Creating a studio ----------
 
-export type Template = 'pilates' | 'yoga' | 'fitness' | 'blank'
+export type Template = 'yoga' | 'pilates' | 'fitness' | 'dance' | 'martial' | 'cycling' | 'swim' | 'blank'
 
 export const TEMPLATES: Record<Template, { label: string; types: [string, string][]; packs: [string, number, number, number, string[]][] }> = {
   pilates: {
@@ -138,7 +138,41 @@ export const TEMPLATES: Record<Template, { label: string; types: [string, string
       ['Unlimited Month', 399, 60, 30, ['Conditioning', 'Strength', 'Cycle']],
     ],
   },
-  blank: { label: 'Start empty', types: [['Group Class', 'Group']], packs: [['Drop-in', 30, 1, 7, ['Group']]] },
+  dance: {
+    label: 'Dance',
+    types: [['Hip Hop', 'Dance'], ['Contemporary', 'Dance'], ['K-Pop Choreo', 'Dance'], ['Kids Ballet', 'Kids']],
+    packs: [
+      ['Drop-in', 45, 1, 7, ['Dance']],
+      ['8 Class Pass', 320, 8, 60, ['Dance']],
+      ['Kids Term (10 weeks)', 380, 10, 75, ['Kids']],
+    ],
+  },
+  martial: {
+    label: 'Martial arts',
+    types: [['Muay Thai', 'Striking'], ['Brazilian Jiu-Jitsu', 'Grappling'], ['Kids Taekwondo', 'Kids'], ['Open Mat', 'Grappling']],
+    packs: [
+      ['Trial Class', 30, 1, 7, ['Striking', 'Grappling']],
+      ['Monthly Unlimited', 350, 60, 30, ['Striking', 'Grappling']],
+      ['Kids Monthly', 220, 8, 30, ['Kids']],
+    ],
+  },
+  cycling: {
+    label: 'Indoor cycling',
+    types: [['Rhythm Ride', 'Ride'], ['Endurance Climb', 'Ride'], ['Ride + Core', 'Ride']],
+    packs: [
+      ['Single Ride', 38, 1, 14, ['Ride']],
+      ['10 Ride Pack', 340, 10, 120, ['Ride']],
+    ],
+  },
+  swim: {
+    label: 'Swim school',
+    types: [['Babies & Toddlers', 'Kids'], ['Learn to Swim', 'Kids'], ['Adult Stroke Clinic', 'Adults']],
+    packs: [
+      ['Kids Term (10 lessons)', 400, 10, 90, ['Kids']],
+      ['Adult 5 Lessons', 250, 5, 60, ['Adults']],
+    ],
+  },
+  blank: { label: 'Something else', types: [['Group Class', 'Group']], packs: [['Drop-in', 30, 1, 7, ['Group']]] },
 }
 
 export interface NewStudioInput {

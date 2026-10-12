@@ -1,15 +1,15 @@
 import { useState, type FormEvent } from 'react'
-import { Dumbbell, Flower2, Layers, Sparkles } from 'lucide-react'
+import { Bike, Dumbbell, Flower2, Layers, Music2, Shield, Sparkles, Waves } from 'lucide-react'
 import { usePlatform } from '../lib/store'
 import { TEMPLATES, uniqueSlug, type Template } from '../lib/platform'
 import { navigate } from '../lib/router'
 import { PlatformHeader } from './Directory'
 
-const ICONS: Record<Template, typeof Layers> = { pilates: Layers, yoga: Flower2, fitness: Dumbbell, blank: Sparkles }
+const ICONS: Record<Template, typeof Layers> = { yoga: Flower2, pilates: Layers, fitness: Dumbbell, dance: Music2, martial: Shield, cycling: Bike, swim: Waves, blank: Sparkles }
 
 export function NewStudio() {
   const { platform, createStudio } = usePlatform()
-  const [form, setForm] = useState({ name: '', location: '', currency: 'RM', cancelHours: 12, description: '', template: 'pilates' as Template })
+  const [form, setForm] = useState({ name: '', location: '', currency: 'RM', cancelHours: 12, description: '', template: 'yoga' as Template })
   const [error, setError] = useState<string | null>(null)
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }))
   const slug = form.name.trim() ? uniqueSlug(platform, form.name) : 'your-studio'
@@ -45,7 +45,7 @@ export function NewStudio() {
             })}
           </fieldset>
           <div className="form-grid">
-            <label className="span2">Studio name<input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Harbour Pilates" required /></label>
+            <label className="span2">Studio name<input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Harbour Movement Studio" required /></label>
             <label>Location<input value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="e.g. Bangsar, KL" required /></label>
             <label>Currency<input value={form.currency} onChange={(e) => set('currency', e.target.value)} maxLength={4} /></label>
             <label>

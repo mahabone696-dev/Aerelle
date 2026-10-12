@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
-// Floating Pilates-inspired objects in glass and pearl: a pilates ring, stability balls, foam rollers,
+// Floating fitness objects in glass and pearl: a ring, exercise balls, a foam roller, a dumbbell, a kettlebell,
 // a slowly morphing glass form and drifting light particles.
 // "hero" fills the sign-in page; "ambient" sits behind the app at the edges, quieter and cheaper.
 
@@ -120,6 +120,27 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
     const blob = mesh(new THREE.IcosahedronGeometry(1.5, hero ? 48 : 20), blobMat)
     const ball = (r: number, m: THREE.Material) => mesh(new THREE.SphereGeometry(r, 64, 48), m)
     const roller = (m: THREE.Material) => mesh(new THREE.CapsuleGeometry(0.26, 1.3, 16, 40), m)
+    const dumbbell = () => {
+      const g = new THREE.Group()
+      const bar = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 24), pearl)
+      bar.rotation.z = Math.PI / 2
+      g.add(bar)
+      for (const side of [-1, 1]) {
+        const plate = mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 40), sky)
+        plate.rotation.z = Math.PI / 2
+        plate.position.x = side * 0.62
+        g.add(plate)
+      }
+      return g
+    }
+    const kettlebell = () => {
+      const g = new THREE.Group()
+      g.add(mesh(new THREE.SphereGeometry(0.5, 48, 32), baby))
+      const handle = mesh(new THREE.TorusGeometry(0.3, 0.07, 16, 48, Math.PI), pearl)
+      handle.position.y = 0.38
+      g.add(handle)
+      return g
+    }
 
     if (hero) {
       add(blob, [-1.6, 0.2, 0], { amp: 0.18, speed: 0.4, spin: new THREE.Vector3(0.05, 0.12, 0) })
@@ -128,7 +149,8 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
       add(ball(0.42, baby), [-3.9, -1.9, 1.2], { amp: 0.25, speed: 0.7 })
       add(ball(0.25, glass), [0.2, 2.5, 1.5], { amp: 0.2, speed: 0.9 })
       add(roller(baby), [-3.6, 2.1, -1], { amp: 0.3, speed: 0.55, spin: new THREE.Vector3(0.1, 0.05, 0.3) }).rotation.z = 0.8
-      add(roller(pearl), [0.6, -2.6, 0.4], { amp: 0.2, speed: 0.5, spin: new THREE.Vector3(0.05, 0.2, 0.1) }).rotation.z = -1.2
+      add(dumbbell(), [0.6, -2.6, 0.4], { amp: 0.2, speed: 0.5, spin: new THREE.Vector3(0.05, 0.25, 0.1) }).rotation.z = -0.4
+      add(kettlebell(), [4.2, 0.4, -1.2], { amp: 0.25, speed: 0.45, spin: new THREE.Vector3(0.02, 0.2, 0.02) })
     } else {
       // Keep the middle clear for content: everything sits toward the corners.
       add(blob, [6.2, 3.2, -3], { amp: 0.25, speed: 0.3 }).scale.setScalar(1.1)
