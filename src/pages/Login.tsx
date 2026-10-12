@@ -14,6 +14,7 @@ export function Login({ route }: { route: Route }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [stage, setStage] = useState('')
   const nextParam = route.query.get('next')
   const next = safeNext(nextParam, '/studios')
   // Arriving from a studio's booking link: show that studio's name.
@@ -23,10 +24,13 @@ export function Login({ route }: { route: Route }) {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
+    setStage(mode === 'login' ? 'Signing you in…' : 'Creating your account…')
     const err = mode === 'login' ? await login(email, password) : await signup(name, email, password)
-    setBusy(false)
-    // On success the app shell sees the signed-in user and redirects to ?next=.
     setError(err)
+    // On success the app shell sees the signed-in user and moves on once their studios have loaded,
+    // which can take a few seconds; keep the button showing progress until then.
+    if (err) setBusy(false)
+    else setStage('Signing you in…')
   }
 
   const fillDemo = (who: 'member' | 'owner') => {
@@ -95,7 +99,15 @@ export function Login({ route }: { route: Route }) {
         </label>
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary block" disabled={busy}>
-          {mode === 'login' ? 'Sign in' : 'Create account · 1 free class'}
+          {busy ? (
+            <>
+              <span className="spinner sm" aria-hidden="true" /> {stage}
+            </>
+          ) : mode === 'login' ? (
+            'Sign in'
+          ) : (
+            'Create account'
+          )}
         </button>
         {mode === 'login' && (
           <button

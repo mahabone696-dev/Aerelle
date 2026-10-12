@@ -879,3 +879,4 @@ main.platform-content.narrow { max-width: 760px; }
 .notice .icon-btn { background: transparent; border-color: rgb(255 255 255 / 0.25); color: #fff; }
 .notice.soft { background: #fff; color: var(--ink); border: 1px solid var(--baby-300); }
 .forgot { justify-self: start; text-align: left; font-weight: 600; }
+.spinner.sm { width: 16px; height: 16px; border-width: 2px; display: inline-block; vertical-align: -3px; }
