@@ -1394,3 +1394,18 @@ body { background: #f7fbfe; }
 .profile-card label { display: grid; gap: 0.35rem; font-weight: 600; font-size: 0.9rem; }
 .profile-card input:disabled { background: var(--surface-2); color: var(--muted); }
 .profile-card .banner { display: flex; align-items: center; gap: 0.4rem; margin: 0; }
+
+/* ---------- Class cards on phones: one tidy action row ---------- */
+@media (max-width: 720px) {
+  .session .cta { justify-content: flex-start; gap: 0.5rem 0.6rem; padding-top: 0.75rem; border-top: 1px solid var(--line); }
+  .session .cta > .spots { flex: 1 1 auto; }                 /* spots left, pushed to the left */
+  .session .cta > .btn { flex: none; min-width: 108px; }     /* Book / Cancel always on the right */
+  .session .cta > .tiny { order: 5; flex-basis: 100%; max-width: none; text-align: left; margin: 0; }  /* "Uses …" on its own line */
+}
+/* Solid header so the page never shows through while scrolling */
+.member-header, .admin-header { background: #fff; }
+@media (max-width: 720px) {
+  .member-header .switcher { flex: 1 1 0; }   /* the studio name shrinks (with …) instead of pushing the counter and avatar to a new line */
+  .member-header .member-header-inner { flex-wrap: wrap; }
+  .member-header .header-actions { margin-left: 0; }
+}
