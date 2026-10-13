@@ -532,6 +532,23 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
           return { error: code.includes('permission-denied') ? 'That studio name is taken. Try a slightly different one.' : friendly(e) }
         }
       },
+      saveProfile: async ({ name, phone, birthday }) => {
+        if (!uid || !auth.currentUser || !account) return 'Sign in first.'
+        if (!name.trim()) return 'Enter your name.'
+        const patch = { name: name.trim(), phone: phone.trim(), birthday }
+        try {
+          const { passwordHash: _omit, ...profile } = { ...account, ...patch }
+          await setDoc(doc(db, 'accounts', uid), profile, { merge: true })
+          // Each studio you belong to sees the same details.
+          const batch = writeBatch(db)
+          for (const sid of Object.keys(mine ?? {})) batch.update(doc(db, `studios/${sid}/members/${uid}`), patch)
+          await batch.commit()
+          await updateProfile(auth.currentUser, { displayName: patch.name }).catch(() => {})
+          return null
+        } catch (e) {
+          return friendly(e)
+        }
+      },
       searchStudios: async (q) => {
         const words = slugify(q).split('-').filter((w) => w.length >= 3)
         if (!words.length) return []
@@ -564,7 +581,7 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
       notice,
       dismissNotice: () => setNotice(null),
     }),
-    [ready, platform, account, verified, uid, applyTo, activeReady, notice, slugPending, viewSlug, studios],
+    [ready, platform, account, verified, uid, applyTo, activeReady, notice, slugPending, viewSlug, studios, mine],
   )
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>

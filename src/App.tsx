@@ -2,7 +2,7 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   BarChart3, Bell, CalendarDays, CalendarCheck, Check, ChevronDown, ChevronsUpDown, Compass, LayoutDashboard, LogOut, Menu,
-  KeyRound, Layers, Package, Plus, Receipt, RotateCcw, Search, Settings as SettingsIcon, Star, Tag, Ticket, Users, X,
+  KeyRound, Layers, UserRound, Package, Plus, Receipt, RotateCcw, Search, Settings as SettingsIcon, Star, Tag, Ticket, Users, X,
 } from 'lucide-react'
 import { StudioScope, usePlatform, useStore } from './lib/store'
 import { averageRating, canRate, classesLeft, type Role } from './lib/model'
@@ -25,6 +25,7 @@ import { Reviews } from './admin/Reviews'
 import { Settings } from './admin/Settings'
 import { Directory } from './platform/Directory'
 import { FindStudio } from './platform/FindStudio'
+import { Profile } from './platform/Profile'
 import { NewStudio } from './platform/NewStudio'
 import { Landing } from './platform/Landing'
 import { initials, Logo } from './ui'
@@ -95,6 +96,8 @@ export function App() {
     } else if (route.full === '/studios') {
       if (!account) navigate('/login')
       else if (portal === 'student') navigate('/find') // students find studios; they don't get a studio list
+    } else if (route.full === '/profile') {
+      if (!account) navigate('/login?next=%2Fprofile')
     } else if (route.full === '/find') {
       if (!account) navigate('/login?next=%2Ffind')
     } else if (route.full !== '/') {
@@ -115,6 +118,8 @@ export function App() {
         <StudioScope studio={studio}><PublicShell route={route} /></StudioScope>
       ) : studio && role && PATHS[role].has(route.path) ? (
         <StudioScope studio={studio}>{role === 'owner' ? <AdminShell route={route} /> : <MemberShell route={route} />}</StudioScope>
+      ) : route.full === '/profile' && account ? (
+        <Profile />
       ) : route.full === '/find' && account ? (
         <FindStudio />
       ) : route.full === '/studios' && account ? (
@@ -399,6 +404,7 @@ export function UserMenu({ role }: { role?: Role }) {
       </summary>
       <div className="dropdown-menu card">
         <p className="dropdown-title">{account.email}</p>
+        <a className="menu-item" href="#/profile" onClick={(e) => closeDropdown(e.currentTarget)}><UserRound size={16} /> Edit profile</a>
         {studentAccount && inStudio && (
           <>
             <p className="dropdown-title menu-group">Your account</p>
@@ -489,6 +495,7 @@ function StudentMenu({ route }: { route: Route }) {
               {item('/credits', 'My packages', Layers)}
               {item('/orders', 'My orders', Receipt)}
               <p className="drawer-label">Settings</p>
+              <a className="drawer-item" href="#/profile"><UserRound size={20} /> Edit profile</a>
               <button className="drawer-item" disabled={resetSent} onClick={() => resetPassword(account.email).then((err) => !err && setResetSent(true))}>
                 <KeyRound size={20} /> {resetSent ? 'Check your email for a reset link' : 'Change password'}
               </button>

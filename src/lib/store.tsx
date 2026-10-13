@@ -59,6 +59,8 @@ export interface PlatformStore {
   /** Creates a studio owned by the signed-in account; returns its slug, or an error message. */
   createStudio: (input: NewStudioInput) => Promise<{ slug?: string; error?: string }>
   joinStudio: (studioId: string) => void
+  /** Saves the signed-in person's name, phone and birthday, here and at every studio they belong to. */
+  saveProfile: (input: { name: string; phone: string; birthday: string }) => Promise<string | null>
   /** Studios whose name has a word starting with each word typed (at least 3 letters). Never a full list. */
   searchStudios: (query: string) => Promise<StudioHit[]>
   /** Runs a model action against one studio; returns an error message instead of throwing. */
@@ -176,6 +178,17 @@ export function LocalPlatformProvider({ children }: { children: ReactNode }) {
         }
       },
       joinStudio: (studioId) => accountId && setPlatform((p) => joinStudio(p, studioId, accountId)),
+      saveProfile: async ({ name, phone, birthday }) => {
+        if (!accountId) return 'Sign in first.'
+        if (!name.trim()) return 'Enter your name.'
+        const patch = { name: name.trim(), phone: phone.trim(), birthday }
+        setPlatform((p) => ({
+          ...p,
+          accounts: p.accounts.map((a) => (a.id === accountId ? { ...a, ...patch } : a)),
+          studios: p.studios.map((s) => ({ ...s, users: s.users.map((u) => (u.id === accountId ? { ...u, ...patch } : u)) })),
+        }))
+        return null
+      },
       searchStudios: async (q) =>
         slugify(q).replace(/-/g, '').length < 3
           ? []

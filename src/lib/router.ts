@@ -15,7 +15,7 @@ export interface Route {
   full: string
 }
 
-const PLATFORM_PATHS = ['/login', '/signup', '/studio/login', '/studio/signup', '/studios', '/find', '/new-studio']
+const PLATFORM_PATHS = ['/login', '/signup', '/studio/login', '/studio/signup', '/studios', '/find', '/profile', '/new-studio']
 const isPlatformPath = (p: string) => p.startsWith('/s/') || PLATFORM_PATHS.some((x) => p === x || p.startsWith(`${x}?`))
 
 function parse(): Route {
