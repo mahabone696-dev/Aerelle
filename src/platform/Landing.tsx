@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react'
 import {
   Activity, ArrowRight, BarChart3, Bell, Bike, CalendarDays, Check, ClipboardCheck, Layers, Link2, ListChecks,
-  Star, Ticket, Users, Waves, Zap,
+  Star, Ticket, Users, Waves,
 } from 'lucide-react'
 import { usePlatform } from '../lib/store'
 import { homeFor } from '../lib/platform'
@@ -28,13 +28,13 @@ const PHOTO_VERTICALS: [string, string, string][] = [
   ['dance', 'Dance', 'Kids, adults and competition teams'],
   ['martial-arts', 'Martial arts', 'Belts, grades and kids classes'],
   ['strength', 'HIIT & strength', 'Bootcamps and small groups'],
+  ['private-training', 'Private gym classes', 'One-to-one and small-group coaching'],
 ]
 
 const VERTICALS: [Icon, string][] = [
   [Bike, 'Indoor cycling'],
   [Activity, 'Barre'],
   [Waves, 'Swim schools'],
-  [Zap, 'Personal training'],
 ]
 
 const PAINS: [string, string][] = [
@@ -173,7 +173,7 @@ export function Landing() {
           <div className="photo-tiles">
             {PHOTO_VERTICALS.map(([img, label, sub]) => (
               <a key={label} className="photo-tile" href="#/new-studio">
-                <img src={`photos/${img}.webp`} alt="" loading="lazy" decoding="async" width="700" height="880" />
+                <img src={`photos/${img}.webp`} alt="" loading="lazy" decoding="async" width="900" height="640" />
                 <span className="photo-tile-text"><strong>{label}</strong><span>{sub}</span></span>
               </a>
             ))}

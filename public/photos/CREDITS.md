@@ -14,3 +14,4 @@ Stock photos from Unsplash (https://unsplash.com), free for commercial use under
 | strength.webp | photo-1518644961665-ed172691aaa1 |
 | calm.webp | photo-1552196563-55cd4e45efb3 |
 | community.webp | photo-1588286840104-8957b019727f |
+| private-training.webp | photo-1571019614242-c5c5dee9f50b |
