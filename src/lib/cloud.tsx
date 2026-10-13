@@ -185,6 +185,9 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
     setStudios(prune)
     setSessions(prune)
     setRatings(prune)
+    // Also forget that dropped studios had loaded, so signing in again waits for them to load afresh
+    // (otherwise the app routed before your studios arrived and sent you to the wrong place).
+    setSeen(prune)
     return () => subs.forEach((u) => u())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wantedKey])
@@ -194,7 +197,12 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setAccountDoc(null)
     setMine(uid ? null : {})
-    if (!uid) return
+    // Signed out: forget whose memberships these were, so signing back in (even as the same account)
+    // waits for that account's studios instead of routing on the empty signed-out list.
+    if (!uid) {
+      setMineUid(null)
+      return
+    }
     const subs = [
       onSnapshot(doc(db, 'accounts', uid), (d) => setAccountDoc(d.exists() ? (d.data() as Account) : null)),
       onSnapshot(
