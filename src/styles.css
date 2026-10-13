@@ -1177,3 +1177,57 @@ body { background: #f7fbfe; }
 .auth-switch { margin: 0.2rem 0 0; padding-top: 0.9rem; border-top: 1px solid var(--line); font-size: 0.88rem; color: var(--muted); text-align: center; }
 .auth-switch a { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 700; text-decoration: none; color: var(--link); }
 .auth-switch a:hover { text-decoration: underline; }
+
+/* ---------- Packages alignment ---------- */
+/* Cards keep one width (a lone card no longer stretches), share a row height, and line their buttons up at the bottom. */
+.packs { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); align-items: stretch; }
+.pack { display: flex; flex-direction: column; gap: 0.4rem; }
+.pack h3 { margin: 0; line-height: 1.3; }
+.pack .price { margin: 0.2rem 0 0; line-height: 1.1; }
+.pack .btn { margin-top: auto; }
+.pack > p.muted { margin: 0 0 0.9rem; }
+.pack > .badge { align-self: flex-start; }
+/* "My packages" rows: name, progress and count stay aligned */
+.rows > .row { grid-template-columns: 1fr 160px 90px; }
+.rows > .row > strong:last-child { text-align: right; white-space: nowrap; }
+.rows > .row .meter { width: 100%; }
+@media (max-width: 720px) {
+  .packs { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .pack { padding: 1rem; }
+  .pack .price { font-size: 1.5rem; }
+  .rows > .row { grid-template-columns: 1fr auto; row-gap: 0.6rem; }
+  .rows > .row .meter { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (max-width: 380px) { .packs { grid-template-columns: 1fr; } }
+
+/* Admin packages table: labels never break mid-word */
+.packages-table td .chip { white-space: nowrap; }
+.packages-table td:nth-child(4) { white-space: nowrap; }
+.packages-table td .badge { margin-left: 0.4rem; white-space: nowrap; }
+
+/* Checkout sheet sits above the sticky headers */
+.sheet { z-index: 60; }
+
+/* Member header: room for every tab, and names on one line */
+.member-header-inner { max-width: 1200px; gap: 1rem; }
+.user-chip strong, .user-chip .small { white-space: nowrap; }
+@media (max-width: 720px) {
+  /* Admin packages: each row becomes a two-line card instead of a table that scrolls sideways */
+  .table-wrap:has(.packages-table) { overflow: visible; }
+  .packages-table thead { display: none; }
+  .packages-table, .packages-table tbody { display: block; }
+  .packages-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.6rem; padding: 0.8rem 0.9rem; border-bottom: 1px solid var(--line); }
+  .packages-table tr:last-child { border-bottom: 0; }
+  .packages-table td { display: block; padding: 0; border: 0; }
+  .packages-table td:first-child { flex: 1 1 100%; }
+  .packages-table .pk-classes::after { content: ' ' attr(data-unit) ' ·'; }
+  .packages-table .pk-classes, .packages-table .pk-price { color: var(--muted); font-size: 0.86rem; }
+  .packages-table .pk-vis { margin-left: auto; }
+  .packages-table .chip { padding: 0.25rem 0.7rem; font-size: 0.8rem; }
+}
+.checkout .actions { display: flex; gap: 0.5rem; }
+.checkout .actions .btn.primary { flex: 1; }
+@media (max-width: 480px) {
+  .checkout .actions { flex-direction: column; }
+  .checkout .actions .btn, .checkout .actions .btn.primary { width: 100%; flex: none; }
+}

@@ -35,15 +35,15 @@ export function PackagesAdmin() {
         <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} /> Show staff-only packages
       </label>
       <div className="table-wrap">
-        <table>
+        <table className="packages-table">
           <thead>
             <tr>
               <th>Package</th>
-              <th>Covers</th>
+              <th className="hide-sm">Covers</th>
               <th className="num">Classes</th>
               <th className="hide-sm">Valid</th>
               <th className="num">Price</th>
-              <th className="num">Sold</th>
+              <th className="num hide-sm">Sold</th>
               <th>Visibility</th>
               <th />
             </tr>
@@ -56,12 +56,12 @@ export function PackagesAdmin() {
                   {p.trial && <span className="badge waitlisted">Trial</span>}
                   {p.recurring && <span className="badge">Monthly</span>}
                 </td>
-                <td>{p.groups.join(', ')}</td>
-                <td className="num">{p.classes}</td>
+                <td className="hide-sm">{p.groups.join(', ')}</td>
+                <td className="num pk-classes" data-unit={p.classes === 1 ? 'class' : 'classes'}>{p.classes}</td>
                 <td className="hide-sm">{validity(p.validDays)}</td>
-                <td className="num">{money(cur, p.price)}</td>
-                <td className="num">{sold(p.id)}</td>
-                <td>
+                <td className="num pk-price">{money(cur, p.price)}</td>
+                <td className="num hide-sm">{sold(p.id)}</td>
+                <td className="pk-vis">
                   <button
                     className={`chip ${p.hidden ? '' : 'on'}`}
                     aria-pressed={!p.hidden}
@@ -71,7 +71,7 @@ export function PackagesAdmin() {
                     {p.hidden ? 'Staff only' : 'Online'}
                   </button>
                 </td>
-                <td><button className="link" onClick={() => setEditing(p)}>Edit</button></td>
+                <td className="pk-edit"><button className="link" onClick={() => setEditing(p)}>Edit</button></td>
               </tr>
             ))}
           </tbody>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useStore } from '../lib/store'
 import { activePackages, hasUsedTrial, purchase, quote, type PackageOption } from '../lib/model'
 import { fmtDate, money, plural } from '../lib/format'
@@ -94,8 +95,8 @@ export function Packs() {
         </div>
       ))}
 
-      {user && selected && preview && (
-        <div className="sheet" role="dialog" aria-label="Checkout">
+      {user && selected && preview && createPortal(
+        <div className="sheet" role="dialog" aria-label="Checkout" onClick={(e) => e.target === e.currentTarget && setSelected(null)}>
           <div className="card checkout">
             <h3>{selected.name}</h3>
             <label>
@@ -123,7 +124,8 @@ export function Packs() {
               <button className="btn ghost" onClick={() => setSelected(null)}>Cancel</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {past.length > 0 && (
