@@ -969,55 +969,59 @@ html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-si
 .day[aria-selected='true'] { box-shadow: 0 8px 18px -10px rgb(134 201 243 / 1); }
 body { background: #f7fbfe; }
 
-/* ---------- 3D buttons: raised, glossy pills with a solid lip that presses down ---------- */
-.btn, .btn.sm, .btn.lg { border-radius: 999px; }
-.btn { position: relative; isolation: isolate; transition: transform 0.12s var(--ease), box-shadow 0.12s var(--ease), background 0.2s; }
-/* Specular highlight on the top half, like light on a glossy surface */
-.btn::before {
-  content: ""; position: absolute; left: 7%; right: 7%; top: 2px; height: 46%; border-radius: 999px; z-index: -1; pointer-events: none;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.9), rgb(255 255 255 / 0.05));
+/* ---------- Buttons ----------
+   Modelled on the best product UI (Stripe, Linear, Apple): a solid fill with a faint top-to-bottom tone, a
+   hairline highlight on the top edge, a crisp 1px border and a tight layered shadow. Quiet on hover, a small
+   press on click. Colours come from the variables below. */
+:root {
+  --btn-bg-top: #2b8ad6; --btn-bg-bottom: #1c76c0; --btn-border: #1769ad; --btn-text: #fff;
+  --btn-glow: rgb(28 118 192 / 0.35);
+  --btn2-bg: #ffffff; --btn2-border: #d6e3ee; --btn2-text: var(--navy);
 }
+.btn {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  height: 40px; padding: 0 1.05rem; border-radius: 10px; font-size: 0.9rem; font-weight: 600; letter-spacing: -0.005em;
+  text-decoration: none; white-space: nowrap; cursor: pointer; text-shadow: none;
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.1s ease, color 0.15s ease;
+}
+.btn.sm { height: 32px; padding: 0 0.75rem; border-radius: 8px; font-size: 0.82rem; }
+.btn.lg { height: 48px; padding: 0 1.4rem; border-radius: 12px; font-size: 1rem; }
+.btn.block { width: 100%; }
 
 .btn.primary {
-  color: var(--navy); text-shadow: 0 1px 0 rgb(255 255 255 / 0.55);
-  border: 1px solid #4fa6e0;
-  background: linear-gradient(180deg, #d6eefe 0%, #a9dbfa 46%, #86c9f3 54%, #9fd5f8 100%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9), inset 0 -3px 6px rgb(42 123 189 / 0.18),
-    0 4px 0 #4f98cf, 0 6px 6px rgb(14 42 68 / 0.14), 0 16px 26px -10px rgb(56 150 220 / 0.6);
+  color: var(--btn-text); border: 1px solid var(--btn-border);
+  background: linear-gradient(180deg, var(--btn-bg-top), var(--btn-bg-bottom));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 1px 2px rgb(14 42 68 / 0.18), 0 4px 12px -4px var(--btn-glow);
 }
 .btn.primary:hover:not(:disabled) {
-  color: var(--navy); border-color: #3f99d6; transform: translateY(-1px);
-  background: linear-gradient(180deg, #def2fe 0%, #b3e0fb 46%, #8fcdf4 54%, #a7d9f9 100%);
-  box-shadow:
-    inset 0 1px 0 #fff, inset 0 -3px 6px rgb(42 123 189 / 0.2),
-    0 5px 0 #4f98cf, 0 8px 8px rgb(14 42 68 / 0.14), 0 20px 30px -10px rgb(56 150 220 / 0.65);
+  color: var(--btn-text); transform: none; filter: brightness(1.06);
+  background: linear-gradient(180deg, var(--btn-bg-top), var(--btn-bg-bottom));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 1px 2px rgb(14 42 68 / 0.2), 0 8px 18px -6px var(--btn-glow);
 }
-.btn.primary:active:not(:disabled) {
-  transform: translateY(3px);
-  box-shadow: inset 0 2px 5px rgb(42 123 189 / 0.3), 0 1px 0 #4f98cf, 0 2px 4px rgb(14 42 68 / 0.12);
-}
+.btn.primary:active:not(:disabled) { transform: translateY(1px); filter: brightness(0.97); box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.2), 0 1px 1px rgb(14 42 68 / 0.15); }
 
 .btn:not(.primary) {
-  color: var(--navy); border: 1px solid #c3dff3;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 48%, #eef6fd 54%, #f6fbff 100%);
-  box-shadow: inset 0 1px 0 #fff, inset 0 -2px 4px rgb(56 150 220 / 0.08), 0 4px 0 #cfe2f1, 0 6px 6px rgb(14 42 68 / 0.08), 0 14px 22px -12px rgb(56 150 220 / 0.4);
+  color: var(--btn2-text); border: 1px solid var(--btn2-border); background: var(--btn2-bg);
+  box-shadow: 0 1px 2px rgb(14 42 68 / 0.06), inset 0 -1px 0 rgb(14 42 68 / 0.03);
 }
 .btn:not(.primary):hover:not(:disabled) {
-  border-color: #a9d3f0; transform: translateY(-1px);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fcff 48%, #e6f3fc 54%, #f1f8fe 100%);
-  box-shadow: inset 0 1px 0 #fff, 0 5px 0 #c3dbee, 0 8px 8px rgb(14 42 68 / 0.08), 0 18px 26px -12px rgb(56 150 220 / 0.45);
+  transform: none; border-color: #bcd3e6; background: #f6fafd;
+  box-shadow: 0 1px 2px rgb(14 42 68 / 0.08), 0 4px 10px -6px rgb(14 42 68 / 0.18);
 }
-.btn:not(.primary):active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 2px 4px rgb(56 150 220 / 0.18), 0 1px 0 #cfe2f1; }
-.btn.danger:not(.primary) { color: var(--danger); border-color: rgb(210 63 85 / 0.35); }
-.btn.sm::before { top: 1px; }
-.btn.sm.primary { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 3px 0 #4f98cf, 0 8px 14px -8px rgb(56 150 220 / 0.55); }
-.btn.sm:not(.primary) { box-shadow: inset 0 1px 0 #fff, 0 3px 0 #d3e5f3, 0 8px 14px -10px rgb(56 150 220 / 0.35); }
-.btn:disabled { transform: none; box-shadow: none; }
-.btn:disabled::before { opacity: 0.4; }
-.btn:focus-visible { outline: 2px solid #3f99d6; outline-offset: 3px; }
-/* Leave room for the lip under buttons that sit at the bottom of a row */
-.actions .btn { margin-bottom: 4px; }
+.btn:not(.primary):active:not(:disabled) { transform: translateY(1px); background: #eef5fb; box-shadow: inset 0 1px 2px rgb(14 42 68 / 0.08); }
+.btn.danger:not(.primary) { color: var(--danger); border-color: rgb(210 63 85 / 0.3); }
+.btn.danger:not(.primary):hover:not(:disabled) { background: #fdf4f6; border-color: rgb(210 63 85 / 0.45); }
+
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; filter: none; }
+.btn:focus-visible { outline: 2px solid #2b8ad6; outline-offset: 2px; }
+
+/* Over the dark photo band: a white button with navy text stands out most */
+.photo-cta .btn.primary, .photo-cta .btn.primary:hover:not(:disabled) {
+  --btn-bg-top: #ffffff; --btn-bg-bottom: #eef5fb; --btn-border: #ffffff; --btn-text: var(--navy); --btn-glow: rgb(0 0 0 / 0.35);
+}
+.photo-cta .btn:not(.primary) { background: rgb(255 255 255 / 0.08); color: #fff; border-color: rgb(255 255 255 / 0.45); box-shadow: none; }
+.photo-cta .btn:not(.primary):hover:not(:disabled) { background: rgb(255 255 255 / 0.16); border-color: #fff; }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
 
 /* ---------- Landing: photos and stronger contrast ---------- */
 .landing { --muted: #3d5873; }
