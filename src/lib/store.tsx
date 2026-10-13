@@ -63,6 +63,10 @@ export interface PlatformStore {
   applyTo: (studioId: string, action: (s: State) => State) => string | null
   /** Tells the store which studio is open, so it can load that studio's private records. */
   setActiveStudio: (studioId: string | null) => void
+  /** The studio link being viewed, so the store can load that one studio (there is no public list of studios). */
+  setViewSlug: (slug: string | null) => void
+  /** The studio link whose lookup has finished (found or not); until it matches the open link, keep waiting. */
+  resolvedSlug: string | null
   /** True once the open studio's records (for the signed-in person's role) have loaded. */
   activeReady: boolean
   /** A message from a background save that failed, shown as a banner. */
@@ -75,6 +79,8 @@ export const PlatformContext = createContext<PlatformStore | null>(null)
 /** Everything in this browser, with demo studios. Used by `npm run dev` with VITE_DEMO=1 and for trying the app offline. */
 export function LocalPlatformProvider({ children }: { children: ReactNode }) {
   const [platform, setPlatform] = useState<Platform>(load)
+  // Every demo studio is already in memory, so a link is "looked up" as soon as it's opened.
+  const [resolvedSlug, setResolvedSlug] = useState<string | null>(null)
   const [accountId, setAccountId] = useState<string | null>(() => {
     try {
       return localStorage.getItem(SESSION_KEY)
@@ -144,6 +150,8 @@ export function LocalPlatformProvider({ children }: { children: ReactNode }) {
       resetPassword: async () => 'Password reset emails are only sent in the live app.',
       resendVerification: async () => null,
       setActiveStudio: () => {},
+      setViewSlug: setResolvedSlug,
+      resolvedSlug,
       activeReady: true,
       notice: null,
       dismissNotice: () => {},
@@ -175,7 +183,7 @@ export function LocalPlatformProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [platform, accountId, login, signup],
+    [platform, accountId, login, signup, resolvedSlug],
   )
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType } from 'react'
 import {
-  Activity, ArrowRight, BarChart3, Bell, Bike, CalendarDays, Check, ClipboardCheck, Layers, Link2, ListChecks,
+  Activity, ArrowRight, ArrowRightLeft, BarChart3, Bell, Bike, CalendarDays, Check, ClipboardCheck, Layers, Link2, ListChecks, ShieldCheck, Wallet,
   Star, Ticket, Users, Waves,
 } from 'lucide-react'
 import { usePlatform } from '../lib/store'
@@ -9,6 +9,13 @@ import { LazyScene } from '../three/LazyScene'
 import { Logo } from '../ui'
 
 type Icon = ComponentType<{ size?: number }>
+
+/** What sets Aerelle apart. Kept to claims the product actually delivers. */
+const PILLARS: [Icon, string, string, string[]][] = [
+  [ArrowRightLeft, 'Switch without starting over', 'Coming from another booking platform? We bring your members, packages, bookings and sales history across for you, so day one on Aerelle looks like the day before.', ['Members and their packages', 'Booking and sales history', 'Your timetable and class types']],
+  [Wallet, 'Low, simple fees', 'One flat price for your studio, with no commission taken from your classes or packages. Free while we\u2019re in early access.', ['No commission on bookings', 'No contract', 'Free during early access']],
+  [ShieldCheck, 'Privacy comes first', 'Your studio isn\u2019t listed in any public directory or marketplace. Only people with your booking link can find you, and your members and sales stay yours.', ['No public studio listing', 'Members see only their own bookings', 'Names never shown on the timetable']],
+]
 
 const FEATURES: [Icon, string, string][] = [
   [CalendarDays, 'Scheduling that fills itself', 'Weekly timetables in a few clicks, live spots left, and waitlists that book the next person automatically when someone cancels.'],
@@ -49,7 +56,9 @@ const FAQ: [string, string][] = [
   ['Can I run more than one studio?', 'Yes. Each studio keeps its own timetable, members, packages and reports, and you switch between them from the sidebar.'],
   ['How do members pay?', 'Today you can sell packages and record payments by card, cash or bank transfer, and track anything unpaid. Online card payments are on the roadmap.'],
   ['Can I bring my existing members?', 'Add members from the Members page, or share your booking link and let them sign up. Their history starts from day one on Aerelle.'],
-  ['Is there a contract?', 'No. Aerelle is free during early access, with no contract and nothing to install.'],
+  ['Can you move my data from my current platform?', 'Yes. We bring your members, their packages, past bookings and sales across from your current booking platform, so you don\u2019t start from zero.'],
+  ['How do you protect my studio\u2019s privacy?', 'Studios aren\u2019t listed or searchable anywhere on Aerelle. People reach you only through your own booking link. Your member list and sales are visible only to you, members see only their own bookings, and other people\u2019s names never appear on the timetable.'],
+  ['What does it cost?', 'Aerelle is free during early access. After that it\u2019s one low, flat price, with no commission on your bookings or packages and no contract.'],
 ]
 
 export function Landing() {
@@ -71,11 +80,11 @@ export function Landing() {
             <Logo size={32} /> <span className="brand-name">Aerelle</span>
           </a>
           <nav className="land-links" aria-label="Sections">
+            <button onClick={() => jump('why')}>Why Aerelle</button>
             <button onClick={() => jump('features')}>Features</button>
             <button onClick={() => jump('who')}>Who it's for</button>
             <button onClick={() => jump('pricing')}>Pricing</button>
             <button onClick={() => jump('faq')}>FAQ</button>
-            <a href="#/studios">Find a class</a>
           </nav>
           <div className="actions">
             {dashboard ? (
@@ -102,15 +111,34 @@ export function Landing() {
             </p>
             <div className="actions">
               <a className="btn primary lg" href="#/new-studio">Create your studio free <ArrowRight size={18} /></a>
-              <a className="btn ghost lg" href="#/studios">Find a class</a>
+              <button className="btn ghost lg" onClick={() => jump('why')}>Why Aerelle</button>
             </div>
             <ul className="hero-ticks">
-              <li><Check size={15} /> No contract</li>
-              <li><Check size={15} /> Set up in minutes</li>
-              <li><Check size={15} /> Works on any device</li>
+              <li><Check size={15} /> Free data migration</li>
+              <li><Check size={15} /> Low, flat fees</li>
+              <li><Check size={15} /> Privacy first</li>
             </ul>
           </div>
           <HeroMock />
+        </div>
+      </section>
+
+      <section className="land-section why" id="why">
+        <div className="land-wrap">
+          <p className="kicker">Why Aerelle</p>
+          <h2 className="section-title">Easy to switch to. Fair to pay for. Private by design.</h2>
+          <div className="pillars">
+            {PILLARS.map(([Icon, title, text, points]) => (
+              <article key={title} className="card pillar">
+                <span className="pillar-icon"><Icon size={22} /></span>
+                <h3>{title}</h3>
+                <p className="muted">{text}</p>
+                <ul>
+                  {points.map((x) => <li key={x}><Check size={15} /> {x}</li>)}
+                </ul>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -218,7 +246,7 @@ export function Landing() {
               <a className="btn primary lg" href="#/new-studio">Create your studio <ArrowRight size={18} /></a>
             </div>
             <ul className="price-list">
-              {['Unlimited classes & members', 'Waitlists & check-in', 'Packages, memberships & promo codes', 'Reports & CSV export', 'Ratings & reviews', 'Multiple studios per account'].map((f) => (
+              {['Unlimited classes & members', 'No commission on bookings', 'Free migration from your current platform', 'Private booking link, never listed publicly', 'Packages, memberships & promo codes', 'Reports & CSV export'].map((f) => (
                 <li key={f}><Check size={16} /> {f}</li>
               ))}
             </ul>
@@ -247,7 +275,7 @@ export function Landing() {
           <p>Set up your studio in a few minutes. It's free during early access.</p>
           <div className="actions">
             <a className="btn primary lg" href="#/new-studio">Create your studio <ArrowRight size={18} /></a>
-            <a className="btn ghost lg" href="#/studios">Browse studios</a>
+            <a className="btn ghost lg" href="#/studio/login">Studio sign in</a>
           </div>
         </div>
       </section>
@@ -256,7 +284,6 @@ export function Landing() {
         <div className="land-wrap footer-inner">
           <a className="brand" href="#/"><Logo size={24} /> <span className="brand-name">Aerelle</span></a>
           <nav aria-label="Footer">
-            <a href="#/studios">Find a class</a>
             <a href="#/new-studio">Create a studio</a>
             <a href="#/studio/login">Studio sign in</a>
             <a href="#/login">Student sign in</a>

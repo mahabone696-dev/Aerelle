@@ -43,7 +43,7 @@ interface Tab {
 
 export function App() {
   const route = useRoute()
-  const { platform, account, joinStudio, ready, setActiveStudio, activeReady } = usePlatform()
+  const { platform, account, joinStudio, ready: storeReady, setActiveStudio, setViewSlug, resolvedSlug, activeReady } = usePlatform()
   setStudioBase(route.studio)
   const studio = route.studio ? studioBySlug(platform, route.studio) : undefined
   const role = account && studio ? roleIn(studio, account.id) : null
@@ -51,6 +51,12 @@ export function App() {
   const isLogin = ['/login', '/signup', '/studio/login', '/studio/signup'].includes(route.full)
   const studioId = studio?.studio.id ?? null
   useEffect(() => setActiveStudio(studioId), [studioId, setActiveStudio])
+  // Load the studio whose link is open (also while signing in to continue to it). Studios are never listed.
+  const nextSlug = isLogin ? safeNext(route.query.get('next'), '').match(/^\/s\/([^/?]+)/)?.[1] : undefined
+  const viewSlug = route.studio ?? (nextSlug ? decodeURIComponent(nextSlug) : null)
+  useEffect(() => setViewSlug(viewSlug), [viewSlug, setViewSlug])
+  // Right after moving to a studio link, wait until that link has been looked up before routing on it.
+  const ready = storeReady && (!viewSlug || !!studio || resolvedSlug === viewSlug)
 
   useEffect(() => {
     if (!ready) return
@@ -76,7 +82,9 @@ export function App() {
       else if (!PATHS[role].has(route.path)) navigate(studioHome(studio.studio.slug, role))
     } else if (route.full === '/new-studio') {
       if (!account) navigate(`/studio/signup?next=${encodeURIComponent('/new-studio')}`)
-    } else if (route.full !== '/studios' && route.full !== '/') {
+    } else if (route.full === '/studios') {
+      if (!account) navigate('/login')
+    } else if (route.full !== '/') {
       navigate(home)
     }
   }, [route, account, studio, role, home, isLogin, joinStudio, ready, platform])
@@ -94,7 +102,7 @@ export function App() {
         <StudioScope studio={studio}><PublicShell route={route} /></StudioScope>
       ) : studio && role && PATHS[role].has(route.path) ? (
         <StudioScope studio={studio}>{role === 'owner' ? <AdminShell route={route} /> : <MemberShell route={route} />}</StudioScope>
-      ) : route.full === '/studios' ? (
+      ) : route.full === '/studios' && account ? (
         <Directory />
       ) : route.full === '/new-studio' && account ? (
         <NewStudio />
@@ -240,7 +248,7 @@ function StudioSwitcher() {
         {joined.length > 0 && <p className="dropdown-title">Studios you book at</p>}
         {joined.map((s) => item(s, 'member'))}
         <div className="menu-sep" />
-        <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Browse studios</a>
+        <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>
         <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>
       </div>
     </details>
@@ -345,7 +353,7 @@ export function UserMenu({ role }: { role?: Role }) {
       </summary>
       <div className="dropdown-menu card">
         <p className="dropdown-title">{account.email}</p>
-        <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Browse studios</a>
+        <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>
         <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>
         <div className="menu-sep" />
         {mode === 'demo' && (

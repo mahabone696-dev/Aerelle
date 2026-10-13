@@ -4,7 +4,7 @@ import {
   signOut, updateProfile, type User as FbUser,
 } from 'firebase/auth'
 import {
-  collection, collectionGroup, doc, getDocs, onSnapshot, query, setDoc, where, writeBatch, type DocumentData, type Query,
+  collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, query, setDoc, where, writeBatch, type DocumentData, type Query,
   type Unsubscribe, type WriteBatch,
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
@@ -19,6 +19,9 @@ import { PlatformContext, type PlatformStore } from './store'
 // assembled from Firestore, then the difference is written back in one atomic batch that firestore.rules
 // checks. Members only ever load their own records plus the public timetable; other people's spots appear
 // as anonymous placeholders so "spots left" and waitlist positions still work.
+//
+// Privacy: there is no list of studios. The app loads only the studio whose link is open (looked up by its
+// link name) and the studios the signed-in person belongs to; the rules refuse listing studios or timetables.
 
 interface StudioDoc extends Studio {
   classTypes: ClassType[]
@@ -90,14 +93,19 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
   const [verified, setVerified] = useState(false)
   const [authReady, setAuthReady] = useState(false)
   const [accountDoc, setAccountDoc] = useState<Account | null>(null)
-  const [studios, setStudios] = useState<Record<string, StudioDoc> | null>(null)
-  const [sessions, setSessions] = useState<Record<string, SessionDoc[]> | null>(null)
+  const [studios, setStudios] = useState<Record<string, StudioDoc>>({})
+  const [sessions, setSessions] = useState<Record<string, SessionDoc[]>>({})
+  // Studios whose profile has arrived (or turned out not to exist), so the app knows loading is done.
+  const [seen, setSeen] = useState<Record<string, true>>({})
   const [ratings, setRatings] = useState<Record<string, Rating[]>>({})
   const [mine, setMine] = useState<Record<string, User> | null>(null)
   // Which account `mine` belongs to. Right after signing in, `mine` still holds the signed-out value for one
   // render; without this the app would route the new account as if it had no studios.
   const [mineUid, setMineUid] = useState<string | null>(null)
   const [activeSid, setActiveSid] = useState<string | null>(null)
+  // The studio link being viewed ("aligne-pilates"), and the studio id it resolves to (undefined while looking it up).
+  const [viewSlug, setViewSlug] = useState<string | null>(null)
+  const [slugSid, setSlugSid] = useState<{ slug: string; sid: string | null } | null>(null)
   const [active, setActive] = useState<Active | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const uid = fbUser?.uid ?? null
@@ -127,23 +135,60 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('focus', check)
   }, [])
 
-  // Public: studios, the timetable and ratings for every studio.
+  // The studio link being viewed: look up which studio it belongs to.
   useEffect(() => {
-    const subs: Unsubscribe[] = [
-      onSnapshot(collection(db, 'studios'), (snap) => setStudios(Object.fromEntries(snap.docs.map((d) => [d.id, d.data() as StudioDoc])))),
-      onSnapshot(collectionGroup(db, 'sessions'), (snap) => {
-        const by: Record<string, SessionDoc[]> = {}
-        for (const d of snap.docs) (by[d.ref.parent.parent!.id] ??= []).push(d.data() as SessionDoc)
-        setSessions(by)
-      }),
-      onSnapshot(collectionGroup(db, 'ratings'), (snap) => {
-        const by: Record<string, Rating[]> = {}
-        for (const d of snap.docs) (by[d.ref.parent.parent!.id] ??= []).push(strip<Rating>(d.data()))
-        setRatings(by)
-      }),
-    ]
+    if (!viewSlug) return
+    let cancelled = false
+    getDoc(doc(db, 'slugs', viewSlug))
+      .then((d) => !cancelled && setSlugSid({ slug: viewSlug, sid: d.exists() ? (d.data().studioId as string) : null }))
+      .catch(() => !cancelled && setSlugSid({ slug: viewSlug, sid: null }))
+    return () => {
+      cancelled = true
+    }
+  }, [viewSlug])
+  const viewSid = viewSlug && slugSid?.slug === viewSlug ? slugSid.sid : null
+  const slugPending = !!viewSlug && slugSid?.slug !== viewSlug
+
+  // Load only the studios this person needs: the one whose link is open, plus their own.
+  const wanted = useMemo(() => [...new Set([...(viewSid ? [viewSid] : []), ...Object.keys(mine ?? {})])].sort(), [viewSid, mine])
+  const wantedKey = wanted.join(',')
+  useEffect(() => {
+    const subs: Unsubscribe[] = []
+    for (const sid of wanted) {
+      subs.push(
+        onSnapshot(
+          doc(db, 'studios', sid),
+          (d) => {
+            setStudios((all) => {
+              const next = { ...all }
+              if (d.exists()) next[sid] = d.data() as StudioDoc
+              else delete next[sid]
+              return next
+            })
+            setSeen((all) => ({ ...all, [sid]: true }))
+          },
+          () => setSeen((all) => ({ ...all, [sid]: true })),
+        ),
+        onSnapshot(
+          collection(db, `studios/${sid}/sessions`),
+          (snap) => setSessions((all) => ({ ...all, [sid]: snap.docs.map((x) => x.data() as SessionDoc) })),
+          () => setSessions((all) => ({ ...all, [sid]: [] })),
+        ),
+        onSnapshot(collection(db, `studios/${sid}/ratings`), (snap) =>
+          setRatings((all) => ({ ...all, [sid]: snap.docs.map((x) => strip<Rating>(x.data())) })),
+        ),
+      )
+    }
+    // Forget studios no longer needed (e.g. after signing out).
+    const keep = new Set(wanted)
+    const prune = <T,>(all: Record<string, T>) => Object.fromEntries(Object.entries(all).filter(([k]) => keep.has(k)))
+    setStudios(prune)
+    setSessions(prune)
+    setRatings(prune)
     return () => subs.forEach((u) => u())
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantedKey])
+  const studiosLoaded = wanted.every((sid) => seen[sid] && (!studios[sid] || sessions[sid] !== undefined))
 
   // The signed-in person's profile and studio memberships.
   useEffect(() => {
@@ -374,7 +419,7 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
     }
   }, [uid, verified, account?.email])
 
-  const ready = authReady && !!studios && !!sessions && (!uid || (!!mine && mineUid === uid))
+  const ready = authReady && !slugPending && (!uid || (!!mine && mineUid === uid)) && studiosLoaded
   const activeReady =
     !activeSid || !uid || !studios?.[activeSid]
       ? true
@@ -458,11 +503,13 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
       },
       applyTo,
       setActiveStudio: setActiveSid,
+      setViewSlug,
+      resolvedSlug: slugPending ? null : viewSlug,
       activeReady,
       notice,
       dismissNotice: () => setNotice(null),
     }),
-    [ready, platform, account, verified, uid, applyTo, activeReady, notice],
+    [ready, platform, account, verified, uid, applyTo, activeReady, notice, slugPending, viewSlug],
   )
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>

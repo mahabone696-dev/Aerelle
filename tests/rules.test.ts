@@ -39,10 +39,19 @@ const as = (id: string, extra: Record<string, unknown> = {}) => env.authenticate
 const anon = () => env.unauthenticatedContext().firestore()
 
 describe('public data', () => {
-  it('anyone can read studios, the timetable and ratings', async () => {
+  it('anyone with a studio link can open its profile, timetable and ratings', async () => {
+    await assertSucceeds(getDoc(doc(anon(), `slugs/a-studio`)))
     await assertSucceeds(getDoc(doc(anon(), `studios/${A}`)))
-    await assertSucceeds(getDoc(doc(anon(), `studios/${A}/sessions/s1`)))
-    await assertSucceeds(getDocs(query(collectionGroup(anon(), 'ratings'))))
+    await assertSucceeds(getDocs(collection(anon(), `studios/${A}/sessions`)))
+    await assertSucceeds(getDocs(collection(anon(), `studios/${A}/ratings`)))
+  })
+  it('nobody can list or search studios, links, timetables or ratings', async () => {
+    for (const db of [anon(), as('alice')]) {
+      await assertFails(getDocs(collection(db, 'studios')))
+      await assertFails(getDocs(collection(db, 'slugs')))
+      await assertFails(getDocs(query(collectionGroup(db, 'sessions'))))
+      await assertFails(getDocs(query(collectionGroup(db, 'ratings'))))
+    }
   })
   it('nobody signed out can read members, bookings, packages or orders', async () => {
     for (const path of ['members/alice', 'bookings/b1', 'packages/p1', 'orders/o1']) {

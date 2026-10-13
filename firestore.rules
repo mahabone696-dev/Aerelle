@@ -1,8 +1,9 @@
 rules_version = '2';
 
 // Aerelle access rules. Every studio is isolated: its members, bookings, packages and orders are readable
-// only by that studio's owners and by the member they belong to. Public: studio profiles, the timetable
-// (with booking ids for taken spots, no names) and ratings.
+// only by that studio's owners and by the member they belong to. Studios are private: nobody can list or
+// search them. Someone holding a studio's link can open its profile, timetable (booking ids for taken
+// spots, no names) and ratings, and nothing else.
 //
 // Layout
 //   accounts/{uid}                       a person's own profile
@@ -46,12 +47,14 @@ service cloud.firestore {
     }
 
     match /slugs/{slug} {
-      allow read: if true;
+      allow get: if true;   // open a studio by its exact link name
+      allow list: if false; // but never list them
       allow create: if signedIn() && request.resource.data.keys().hasOnly(['studioId', 'createdBy']) && request.resource.data.createdBy == uid();
     }
 
     match /studios/{sid} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if false;
       allow create: if signedIn() && request.resource.data.ownerUids == [uid()] && request.resource.data.id == sid;
       allow update: if isOwner(sid) && request.resource.data.ownerUids.size() > 0 && unchanged('id') && unchanged('slug');
       allow delete: if false;
@@ -142,16 +145,10 @@ service cloud.firestore {
       }
     }
 
-    // Searches across all studios. A person can find their own memberships (and placeholders to claim by
-    // verified email); anyone can search the public timetable and ratings for the studio directory.
+    // Searches across studios: a person can find only their own memberships (and placeholders to claim by
+    // verified email). Timetables and ratings can't be searched across studios.
     match /{path=**}/members/{memberId} {
       allow read: if (signedIn() && resource.data.id == uid()) || (verifiedEmail() != null && resource.data.email == verifiedEmail());
-    }
-    match /{path=**}/sessions/{id} {
-      allow read: if true;
-    }
-    match /{path=**}/ratings/{id} {
-      allow read: if true;
     }
   }
 }

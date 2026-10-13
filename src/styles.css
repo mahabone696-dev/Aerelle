@@ -1231,3 +1231,85 @@ body { background: #f7fbfe; }
   .checkout .actions { flex-direction: column; }
   .checkout .actions .btn, .checkout .actions .btn.primary { width: 100%; flex: none; }
 }
+
+/* =====================================================================
+   Signature gradient: aqua -> azure -> violet. Three neighbouring cool hues, used for emphasis only
+   (primary actions, highlights, icons, active states) so the brand reads as one system, not a rainbow.
+   ===================================================================== */
+:root {
+  --g-aqua: #2ec5d3;
+  --g-azure: #3b8ff0;
+  --g-violet: #7b6df2;
+  --grad: linear-gradient(115deg, var(--g-aqua) 0%, var(--g-azure) 50%, var(--g-violet) 100%);
+  --grad-strong: linear-gradient(115deg, #0e93a8 0%, #2a74d6 52%, #5f4fd9 100%);
+  --grad-soft: linear-gradient(115deg, rgb(46 197 211 / 0.14), rgb(59 143 240 / 0.14) 50%, rgb(123 109 242 / 0.14));
+  --grad-wash: linear-gradient(115deg, #eefafb 0%, #eef5fe 50%, #f3f1fe 100%);
+}
+
+/* Primary buttons */
+.btn.primary, .btn.primary:hover:not(:disabled) {
+  background: var(--grad-strong); border-color: transparent; color: #fff;
+}
+.btn.primary { background-size: 140% 100%; background-position: 0% 50%; transition: background-position 0.4s ease, box-shadow 0.15s ease, transform 0.1s ease, filter 0.15s ease; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 1px 2px rgb(14 42 68 / 0.18), 0 6px 16px -6px rgb(95 79 217 / 0.45); }
+.btn.primary:hover:not(:disabled) { background-size: 140% 100%; background-position: 100% 50%; filter: none; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 1px 2px rgb(14 42 68 / 0.2), 0 10px 22px -8px rgb(95 79 217 / 0.55); }
+.photo-cta .btn.primary, .photo-cta .btn.primary:hover:not(:disabled) { background: #fff; color: var(--navy); }
+.btn:focus-visible { outline-color: var(--g-azure); }
+
+/* Text highlights */
+.grad, .display .grad {
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+}
+.landing .kicker, .landing .kicker.left {
+  background: var(--grad-strong); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+  display: block; width: max-content; margin-left: auto; margin-right: auto;
+}
+.landing .kicker.left { margin-left: 0; }
+
+/* Icons and step numbers */
+.feature-icon, .stat-icon, .pillar-icon { background: var(--grad-soft); color: #3a7fe0; }
+.step { background: var(--grad-strong); color: #fff; box-shadow: 0 6px 14px -6px rgb(95 79 217 / 0.5); }
+.pain-after svg, .split-list svg, .price-list svg, .hero-ticks svg, .auth-points li svg, .pillar li svg { color: #3a7fe0; }
+.split-list svg { background: var(--grad-soft); }
+
+/* Section backgrounds: a faint wash of the three hues */
+.land-section.alt { background: var(--grad-wash); border-color: #e2ecf8; }
+.land-section.tint { background: linear-gradient(180deg, #e9f6fc 0%, #f1f0fe 100%); }
+.land-hero {
+  background:
+    radial-gradient(700px 500px at 8% 15%, rgb(46 197 211 / 0.12), transparent 60%),
+    radial-gradient(800px 600px at 95% 20%, rgb(123 109 242 / 0.13), transparent 60%),
+    radial-gradient(900px 700px at 70% 90%, rgb(59 143 240 / 0.14), transparent 65%),
+    linear-gradient(160deg, #fff, #f3f8ff);
+}
+/* Closing band: the photo under a deep version of the gradient */
+.photo-cta::before { background: linear-gradient(115deg, rgb(6 62 78 / 0.88) 0%, rgb(14 48 104 / 0.84) 50%, rgb(52 36 120 / 0.84) 100%); }
+
+/* Why Aerelle */
+.why { background: #fff; }
+.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin-top: 2.5rem; }
+.pillar { position: relative; display: grid; gap: 0.7rem; align-content: start; padding: 1.6rem; overflow: hidden; }
+.pillar::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--grad); }
+.pillar-icon { display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; }
+.pillar h3 { margin: 0.3rem 0 0; font-size: 1.15rem; color: var(--navy); }
+.pillar p { margin: 0; line-height: 1.55; }
+.pillar ul { list-style: none; margin: 0.4rem 0 0; padding: 0.9rem 0 0; border-top: 1px solid var(--line); display: grid; gap: 0.5rem; }
+.pillar li { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.9rem; color: var(--navy); }
+@media (max-width: 900px) { .pillars { grid-template-columns: 1fr; } }
+.price-card { position: relative; overflow: hidden; }
+.price-card::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--grad); }
+
+/* App: active states pick up the gradient */
+.nav-item[aria-current='page'] { background: var(--grad-soft); }
+.nav-item[aria-current='page']::before { background: var(--grad); }
+.nav-item[aria-current='page'] svg { color: #3a7fe0; }
+.member-nav a[aria-current='page'] { border-bottom-color: transparent; background-image: var(--grad); background-size: 100% 3px; background-repeat: no-repeat; background-position: bottom; }
+.day[aria-selected='true'] { background: var(--grad-strong); color: #fff; border-color: transparent; box-shadow: 0 8px 18px -10px rgb(95 79 217 / 0.6); }
+.day[aria-selected='true'] .day-dot.on { background: #fff; }
+.cal-date.today { background: var(--grad-strong); color: #fff; }
+.studio-mark { background: var(--grad-soft); color: var(--navy); }
+.auth-studio .audience-badge { background: var(--grad-strong); border-color: transparent; }
+.credits { background: var(--grad-soft); border-color: #dbe6fa; }
+.fill span, .mock-fill span, .meter span { background: var(--grad); }
+.tag { background: var(--grad-strong); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; width: max-content; }
+.auth::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(600px 400px at 10% 10%, rgb(46 197 211 / 0.1), transparent 60%), radial-gradient(700px 500px at 90% 90%, rgb(123 109 242 / 0.1), transparent 60%); }

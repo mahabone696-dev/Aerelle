@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowRight, BarChart3, CalendarDays, CalendarCheck, Search, Ticket, Users } from 'lucide-react'
+import { ArrowRight, BarChart3, CalendarDays, CalendarCheck, Lock, Ticket, Users } from 'lucide-react'
 import { usePlatform } from '../lib/store'
 import { studioBySlug } from '../lib/platform'
 import { safeNext, type Route } from '../lib/router'
@@ -25,7 +25,7 @@ const COPY = {
     badge: 'For students',
     title: <>Book your next class. <span className="grad">In seconds.</span></>,
     tag: 'See live spots, book or join a waitlist, and keep track of your packages at every studio you love.',
-    points: [[Search, 'Browse studios'], [CalendarCheck, 'Book and cancel any time'], [Ticket, 'Packages and classes left']] as const,
+    points: [[Lock, 'Private: only you see your bookings'], [CalendarCheck, 'Book and cancel any time'], [Ticket, 'Packages and classes left']] as const,
     login: 'Welcome back',
     signup: 'Create your account',
     signupTab: 'Create account',
