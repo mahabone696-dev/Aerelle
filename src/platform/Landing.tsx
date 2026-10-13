@@ -82,8 +82,8 @@ export function Landing() {
               <a className="btn primary" href={`#${dashboard}`}>Open dashboard <ArrowRight size={16} /></a>
             ) : (
               <>
-                <a className="btn ghost hide-sm" href="#/login">Sign in</a>
-                <a className="btn primary" href="#/new-studio">Start free</a>
+                <a className="btn ghost hide-sm" href="#/studio/login">Studio sign in</a>
+                <a className="btn primary" href="#/studio/signup">Start free</a>
               </>
             )}
           </div>
@@ -258,7 +258,8 @@ export function Landing() {
           <nav aria-label="Footer">
             <a href="#/studios">Find a class</a>
             <a href="#/new-studio">Create a studio</a>
-            <a href="#/login">Sign in</a>
+            <a href="#/studio/login">Studio sign in</a>
+            <a href="#/login">Student sign in</a>
           </nav>
           <span className="muted tiny">© {new Date().getFullYear()} Aerelle</span>
         </div>

@@ -8,7 +8,7 @@ import { averageRating, canRate, classesLeft, type Role } from './lib/model'
 import { homeFor, roleIn, studioBySlug, studiosFor } from './lib/platform'
 import { link, navigate, safeNext, setStudioBase, useRoute, type Route } from './lib/router'
 import { money, plural } from './lib/format'
-import { Login } from './pages/Login'
+import { isStudioAuth, Login } from './pages/Login'
 import { Schedule } from './pages/Schedule'
 import { Bookings } from './pages/Bookings'
 import { Rating } from './pages/Rating'
@@ -48,29 +48,38 @@ export function App() {
   const studio = route.studio ? studioBySlug(platform, route.studio) : undefined
   const role = account && studio ? roleIn(studio, account.id) : null
   const home = account ? homeFor(platform, account.id) : '/studios'
-  const isLogin = route.full === '/login' || route.full === '/signup'
+  const isLogin = ['/login', '/signup', '/studio/login', '/studio/signup'].includes(route.full)
   const studioId = studio?.studio.id ?? null
   useEffect(() => setActiveStudio(studioId), [studioId, setActiveStudio])
 
   useEffect(() => {
     if (!ready) return
     if (isLogin) {
-      if (account) navigate(safeNext(route.query.get('next'), home))
+      if (account) {
+        // Studio sign-in goes to your studio's dashboard (or setting one up); student sign-in to your classes.
+        const { owned, joined } = studiosFor(platform, account.id)
+        const fallback = isStudioAuth(route.full)
+          ? owned[0] ? `/s/${owned[0].studio.slug}/overview` : '/new-studio'
+          : joined[0] ? `/s/${joined[0].studio.slug}/schedule` : owned[0] ? home : '/studios'
+        navigate(safeNext(route.query.get('next'), fallback))
+      }
     } else if (route.studio) {
       const query = route.query.toString()
       if (!studio) navigate('/studios')
       else if (route.path === '/' || route.path === '/classes') navigate(`/s/${studio.studio.slug}/schedule`)
       else if (!account) {
-        if (!PUBLIC_PATHS.has(route.path)) navigate(`/login?next=${encodeURIComponent(route.full + (query ? `?${query}` : ''))}`)
+        // Owner-only pages ask for the studio sign-in; member pages for the student one.
+        const signIn = PATHS.owner.has(route.path) && !PATHS.member.has(route.path) ? '/studio/login' : '/login'
+        if (!PUBLIC_PATHS.has(route.path)) navigate(`${signIn}?next=${encodeURIComponent(route.full + (query ? `?${query}` : ''))}`)
       }
       else if (!role) joinStudio(studio.studio.id) // opening a studio you're not in yet makes you a member
       else if (!PATHS[role].has(route.path)) navigate(studioHome(studio.studio.slug, role))
     } else if (route.full === '/new-studio') {
-      if (!account) navigate(`/login?next=${encodeURIComponent('/new-studio')}`)
+      if (!account) navigate(`/studio/signup?next=${encodeURIComponent('/new-studio')}`)
     } else if (route.full !== '/studios' && route.full !== '/') {
       navigate(home)
     }
-  }, [route, account, studio, role, home, isLogin, joinStudio, ready])
+  }, [route, account, studio, role, home, isLogin, joinStudio, ready, platform])
 
   return (
     <>

@@ -1,14 +1,45 @@
 import { useState, type FormEvent } from 'react'
+import { ArrowRight, BarChart3, CalendarDays, CalendarCheck, Search, Ticket, Users } from 'lucide-react'
 import { usePlatform } from '../lib/store'
 import { studioBySlug } from '../lib/platform'
 import { safeNext, type Route } from '../lib/router'
 import { LazyScene } from '../three/LazyScene'
 import { initials, Logo } from '../ui'
 
+/** Studios (owners and staff) sign in at /studio/login; students who book classes at /login. */
+export const isStudioAuth = (path: string) => path.startsWith('/studio/')
+
+const COPY = {
+  studio: {
+    badge: 'For studios',
+    title: <>Run your studio. <span className="grad">Fill every class.</span></>,
+    tag: 'Your timetable, bookings, packages, check-ins and reports in one place, for yoga, Pilates, dance, martial arts, gyms and more.',
+    points: [[CalendarDays, 'Timetable and waitlists'], [Users, 'Members and check-in'], [BarChart3, 'Sales and payroll reports']] as const,
+    login: 'Studio sign in',
+    signup: 'Create your studio account',
+    signupTab: 'New studio',
+    switchText: 'Here to book a class?',
+    switchLink: 'Student sign in',
+  },
+  member: {
+    badge: 'For students',
+    title: <>Book your next class. <span className="grad">In seconds.</span></>,
+    tag: 'See live spots, book or join a waitlist, and keep track of your packages at every studio you love.',
+    points: [[Search, 'Browse studios'], [CalendarCheck, 'Book and cancel any time'], [Ticket, 'Packages and classes left']] as const,
+    login: 'Welcome back',
+    signup: 'Create your account',
+    signupTab: 'Create account',
+    switchText: 'Run a studio?',
+    switchLink: 'Studio sign in',
+  },
+}
+
 export function Login({ route }: { route: Route }) {
   const { platform, login, signup, resetPassword, mode: storeMode } = usePlatform()
+  const audience = isStudioAuth(route.path) ? 'studio' : 'member'
+  const copy = COPY[audience]
   const [info, setInfo] = useState<string | null>(null)
-  const [mode, setMode] = useState<'login' | 'signup'>(route.path === '/signup' ? 'signup' : 'login')
+  const [mode, setMode] = useState<'login' | 'signup'>(route.path.endsWith('/signup') ? 'signup' : 'login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -41,32 +72,29 @@ export function Login({ route }: { route: Route }) {
   }
 
   return (
-    <div className="auth">
+    <div className={`auth auth-${audience}`}>
       <LazyScene variant="hero" />
       <div className="auth-copy">
         <div>
           <a className="brand brand-lg" href="#/"><Logo size={44} /> Aerelle</a>
         </div>
-        <h1 className="display">
-          Fill every class. <span className="grad">Keep every member.</span>
-        </h1>
-        <p className="auth-tag">
-          One account for every studio on Aerelle: yoga, Pilates, dance, martial arts, HIIT and more. Book as a member, or run your own studio.
-        </p>
+        <h1 className="display">{copy.title}</h1>
+        <p className="auth-tag">{copy.tag}</p>
         <ul className="auth-points">
-          <li>Live spots and waitlists</li>
-          <li>Packages and memberships</li>
-          <li>Many studios, one login</li>
+          {copy.points.map(([Icon, text]) => (
+            <li key={text}><Icon size={15} /> {text}</li>
+          ))}
         </ul>
       </div>
       <form className="card glass auth-card" onSubmit={submit}>
-        <h2 className="flush">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h2>
+        <span className="audience-badge">{copy.badge}</span>
+        <h2 className="flush">{mode === 'login' ? copy.login : copy.signup}</h2>
         <div className="seg" role="tablist">
           <button type="button" role="tab" aria-selected={mode === 'login'} onClick={() => setMode('login')}>
             Sign in
           </button>
           <button type="button" role="tab" aria-selected={mode === 'signup'} onClick={() => setMode('signup')}>
-            Create account
+            {copy.signupTab}
           </button>
         </div>
         {studio ? (
@@ -79,7 +107,7 @@ export function Login({ route }: { route: Route }) {
         )}
         {mode === 'signup' && (
           <label>
-            Name
+            {audience === 'studio' ? 'Your name' : 'Name'}
             <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required />
           </label>
         )}
@@ -120,17 +148,22 @@ export function Login({ route }: { route: Route }) {
               setInfo(err ? null : `If ${email.trim()} has an account, a link to set a new password is on its way.`)
             }}
           >
-            Forgot password? First time here after your studio added you?
+            {audience === 'studio' ? 'Forgot password?' : 'Forgot password? First time here after your studio added you?'}
           </button>
         )}
         {info && <p className="ok banner" role="status">{info}</p>}
         {storeMode === 'demo' && (
           <div className="demo">
-            <span className="muted small">Try a demo account:</span>
-            <button type="button" className="link" onClick={() => fillDemo('member')}>Member</button>
-            <button type="button" className="link" onClick={() => fillDemo('owner')}>Studio owner</button>
+            <span className="muted small">Try the demo:</span>
+            <button type="button" className="link" onClick={() => fillDemo(audience === 'studio' ? 'owner' : 'member')}>
+              {audience === 'studio' ? 'Studio owner' : 'Member'}
+            </button>
           </div>
         )}
+        <p className="auth-switch">
+          {copy.switchText}{' '}
+          <a href={`#${audience === 'studio' ? '/login' : '/studio/login'}`}>{copy.switchLink} <ArrowRight size={14} /></a>
+        </p>
       </form>
     </div>
   )

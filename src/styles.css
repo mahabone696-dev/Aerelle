@@ -1164,3 +1164,16 @@ body { background: #f7fbfe; }
   .public .header-actions .btn.sm { padding: 0.35rem 0.6rem; }
   .public .public-brand .brand-sub { display: none; }
 }
+
+/* ---------- Separate studio and student sign-in ---------- */
+.auth-points li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.auth-points li::before { content: none; }
+.auth-points li svg { color: #2b8ad6; }
+.audience-badge {
+  justify-self: start; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.65rem; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #1f6aa5; background: #e6f3fc; border: 1px solid #cfe6f7;
+}
+.auth-studio .audience-badge { color: #fff; background: var(--navy); border-color: var(--navy); }
+.auth-switch { margin: 0.2rem 0 0; padding-top: 0.9rem; border-top: 1px solid var(--line); font-size: 0.88rem; color: var(--muted); text-align: center; }
+.auth-switch a { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 700; text-decoration: none; color: var(--link); }
+.auth-switch a:hover { text-decoration: underline; }
