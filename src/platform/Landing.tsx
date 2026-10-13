@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react'
 import {
   Activity, ArrowRight, BarChart3, Bell, Bike, CalendarDays, Check, ClipboardCheck, Layers, Link2, ListChecks,
-  Sparkles, Star, Ticket, Users, Waves, Zap,
+  Star, Ticket, Users, Waves, Zap,
 } from 'lucide-react'
 import { usePlatform } from '../lib/store'
 import { homeFor } from '../lib/platform'
@@ -94,7 +94,6 @@ export function Landing() {
         <LazyScene variant="hero" />
         <div className="land-wrap hero-grid">
           <div className="hero-copy">
-            <span className="eyebrow"><Sparkles size={14} /> Booking & studio management</span>
             <h1 className="display">
               Fill every class. <span className="grad">Keep every member.</span>
             </h1>
@@ -133,7 +132,7 @@ export function Landing() {
       <section className="land-section tint">
         <div className="land-wrap split">
           <div className="split-media">
-            <img className="photo" src="photos/group-class.webp" alt="A full group fitness class training together in a bright studio" loading="lazy" width="1200" height="900" />
+            <img className="photo" src="photos/group-class.webp" alt="A full group fitness class training together in a bright studio" loading="lazy" decoding="async" width="1200" height="900" />
             <div className="card mock-float chip-a"><Users size={16} /> <span><strong>Full class</strong><span className="muted tiny block">3 people on the waitlist</span></span></div>
             <div className="card mock-float chip-b"><Bell size={16} /> <span><strong>Spot opened</strong><span className="muted tiny block">Next on the waitlist is booked in</span></span></div>
           </div>
@@ -174,7 +173,7 @@ export function Landing() {
           <div className="photo-tiles">
             {PHOTO_VERTICALS.map(([img, label, sub]) => (
               <a key={label} className="photo-tile" href="#/new-studio">
-                <img src={`photos/${img}.webp`} alt="" loading="lazy" width="700" height="880" />
+                <img src={`photos/${img}.webp`} alt="" loading="lazy" decoding="async" width="700" height="880" />
                 <span className="photo-tile-text"><strong>{label}</strong><span>{sub}</span></span>
               </a>
             ))}
@@ -193,7 +192,7 @@ export function Landing() {
       <section className="land-section alt">
         <div className="land-wrap split reverse">
           <div className="split-media">
-            <img className="photo" src="photos/calm.webp" alt="A studio owner sitting calmly on a yoga mat" loading="lazy" width="1000" height="1100" />
+            <img className="photo" src="photos/calm.webp" alt="A studio owner sitting calmly on a yoga mat" loading="lazy" decoding="async" width="1000" height="1100" />
           </div>
           <div className="split-copy">
           <p className="kicker left">How it works</p>

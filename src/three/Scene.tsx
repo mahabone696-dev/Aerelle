@@ -23,11 +23,11 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
 
     let renderer: THREE.WebGLRenderer
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: hero ? 'high-performance' : 'low-power' })
+      renderer = new THREE.WebGLRenderer({ antialias: window.devicePixelRatio < 2, alpha: true, powerPreference: 'low-power' })
     } catch {
       return // No WebGL: the CSS gradient behind stays on its own.
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, hero ? 1.75 : 1.25))
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25))
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.05
     renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -45,7 +45,7 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
     const key = new THREE.DirectionalLight('#ffffff', 1.6)
     key.position.set(4, 6, 5)
     scene.add(key)
-    const rim = new THREE.PointLight(SKY, 18, 30)
+    const rim = new THREE.DirectionalLight(SKY, 0.9)
     rim.position.set(-5, -2, 4)
     scene.add(rim)
 
@@ -58,24 +58,17 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
         color: ICE,
         roughness: 0.06,
         metalness: 0,
-        transmission: hero ? 1 : 0,
-        transparent: !hero,
-        opacity: hero ? 1 : 0.8,
-        thickness: 1.4,
-        ior: 1.42,
+        transparent: true,
+        opacity: 0.55,
         clearcoat: 1,
         clearcoatRoughness: 0.05,
-        iridescence: 0.7,
-        iridescenceIOR: 1.3,
-        attenuationColor: BABY,
-        attenuationDistance: 2.5,
       }),
     )
     const pearl = track(
-      new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.15, sheen: 1, sheenColor: BABY, sheenRoughness: 0.4 }),
+      new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.3 }),
     )
-    const baby = track(new THREE.MeshPhysicalMaterial({ color: BABY, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.1, iridescence: 0.3 }))
-    const sky = track(new THREE.MeshPhysicalMaterial({ color: SKY, roughness: 0.35, clearcoat: 0.8, metalness: 0.05 }))
+    const baby = track(new THREE.MeshStandardMaterial({ color: BABY, roughness: 0.25 }))
+    const sky = track(new THREE.MeshStandardMaterial({ color: SKY, roughness: 0.35, metalness: 0.05 }))
 
     // Morphing glass form: vertices ripple along their normals.
     const time = { value: 0 }
@@ -111,22 +104,22 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
 
     // Pilates ring with two grip pads.
     const ring = new THREE.Group()
-    ring.add(mesh(new THREE.TorusGeometry(1.15, 0.1, 40, 180), sky))
+    ring.add(mesh(new THREE.TorusGeometry(1.15, 0.1, 16, 96), sky))
     for (const side of [-1, 1]) {
-      const pad = mesh(new THREE.CapsuleGeometry(0.2, 0.32, 12, 24), pearl)
+      const pad = mesh(new THREE.CapsuleGeometry(0.2, 0.32, 6, 16), pearl)
       pad.position.x = side * 1.15
       ring.add(pad)
     }
-    const blob = mesh(new THREE.IcosahedronGeometry(1.5, hero ? 48 : 20), blobMat)
-    const ball = (r: number, m: THREE.Material) => mesh(new THREE.SphereGeometry(r, 64, 48), m)
-    const roller = (m: THREE.Material) => mesh(new THREE.CapsuleGeometry(0.26, 1.3, 16, 40), m)
+    const blob = mesh(new THREE.IcosahedronGeometry(1.5, 14), blobMat)
+    const ball = (r: number, m: THREE.Material) => mesh(new THREE.SphereGeometry(r, 32, 24), m)
+    const roller = (m: THREE.Material) => mesh(new THREE.CapsuleGeometry(0.26, 1.3, 8, 24), m)
     const dumbbell = () => {
       const g = new THREE.Group()
-      const bar = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 24), pearl)
+      const bar = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 12), pearl)
       bar.rotation.z = Math.PI / 2
       g.add(bar)
       for (const side of [-1, 1]) {
-        const plate = mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 40), sky)
+        const plate = mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 28), sky)
         plate.rotation.z = Math.PI / 2
         plate.position.x = side * 0.62
         g.add(plate)
@@ -135,8 +128,8 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
     }
     const kettlebell = () => {
       const g = new THREE.Group()
-      g.add(mesh(new THREE.SphereGeometry(0.5, 48, 32), baby))
-      const handle = mesh(new THREE.TorusGeometry(0.3, 0.07, 16, 48, Math.PI), pearl)
+      g.add(mesh(new THREE.SphereGeometry(0.5, 28, 20), baby))
+      const handle = mesh(new THREE.TorusGeometry(0.3, 0.07, 8, 24, Math.PI), pearl)
       handle.position.y = 0.38
       g.add(handle)
       return g
@@ -161,7 +154,7 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
     }
 
     // Light particles drifting upward.
-    const count = hero ? 420 : 160
+    const count = hero ? 140 : 80
     const positions = new Float32Array(count * 3)
     for (let i = 0; i < count; i++) {
       positions[i * 3] = (Math.random() - 0.5) * 22
@@ -177,6 +170,9 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
     )
     scene.add(points)
 
+    // Set when the device turns out too slow to animate (see the loop below).
+    let frozen = false
+
     // Sizing
     const resize = () => {
       const w = host.clientWidth || window.innerWidth
@@ -186,6 +182,8 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
       // On narrow screens pull back so the composition still fits.
       camera.position.z = (hero ? 11 : 13) * (camera.aspect < 0.8 ? 1.6 : camera.aspect < 1.2 ? 1.25 : 1)
       camera.updateProjectionMatrix()
+      // Resizing clears the canvas, so redraw the still frame when nothing is animating.
+      if (frozen || reduceMotion) renderer.render(scene, camera)
     }
     const ro = new ResizeObserver(resize)
     ro.observe(host)
@@ -221,23 +219,46 @@ export default function Scene({ variant }: { variant: SceneVariant }) {
       camera.lookAt(0, -scroll, 0)
       renderer.render(scene, camera)
     }
-    const loop = () => {
+    // Runs at about 30fps, and stops completely while the scene is scrolled out of view or the tab is hidden.
+    // If this device can't keep up (slow GPU or software rendering), stop animating and keep one still frame,
+    // so the page never stutters.
+    let onScreen = true
+    let costSum = 0
+    let gapSum = 0
+    let samples = 0
+    let lastFrame = 0
+    const loop = (now = performance.now()) => {
       raf = requestAnimationFrame(loop)
-      // The background scene runs at half rate to save battery.
-      if (!hero && frame++ % 2) return
+      if (frame++ % 2) return
+      const t0 = performance.now()
       render()
+      if (samples < 16) {
+        costSum += performance.now() - t0
+        if (lastFrame) gapSum += now - lastFrame
+        lastFrame = now
+        // Over the first 16 rendered frames: too much work per frame, or under ~20fps overall.
+        if (++samples === 16 && (costSum / 16 > 12 || gapSum / 15 > 50)) {
+          frozen = true
+          cancelAnimationFrame(raf)
+        }
+      }
     }
-    const onVisibility = () => {
+    const sync = () => {
       cancelAnimationFrame(raf)
-      if (!document.hidden && !reduceMotion) loop()
+      lastFrame = 0
+      if (!document.hidden && onScreen && !reduceMotion && !frozen) loop()
     }
+    const onVisibility = sync
     document.addEventListener('visibilitychange', onVisibility)
+    const io = new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; sync() })
+    io.observe(host)
     if (reduceMotion) render()
     else loop()
     requestAnimationFrame(() => host.classList.add('ready'))
 
     return () => {
       cancelAnimationFrame(raf)
+      io.disconnect()
       ro.disconnect()
       window.removeEventListener('pointermove', onPointer)
       document.removeEventListener('visibilitychange', onVisibility)

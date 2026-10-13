@@ -1102,3 +1102,8 @@ body { background: #f7fbfe; }
   .split .photo { border-radius: 18px; }
 }
 @media (prefers-reduced-motion: reduce) { .photo-tile img { transition: none; } }
+
+/* ---------- Performance: no live blurs or endless animations while scrolling; render off-screen sections lazily ---------- */
+.land-nav.scrolled, .admin-header, .member-header { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgb(255 255 255 / 0.97); }
+.mock-float.one, .mock-float.two { animation: none; }
+.land-section, .land-cta, .land-footer { content-visibility: auto; contain-intrinsic-size: auto 800px; }
