@@ -83,7 +83,7 @@ export function App() {
       }
     } else if (route.studio) {
       const query = route.query.toString()
-      if (!studio) navigate('/studios')
+      if (!studio) navigate(`/studios?notfound=${encodeURIComponent(route.studio)}`)
       else if (route.path === '/' || route.path === '/classes') navigate(`/s/${studio.studio.slug}/schedule`)
       else if (!account) {
         // Owner-only pages ask for the studio sign-in; member pages for the student one.
@@ -352,6 +352,7 @@ function Alerts() {
 /** Account menu; `role` is the person's role in the studio being shown, if any. */
 export function UserMenu({ role }: { role?: Role }) {
   const { account, logout, resetDemo, mode } = usePlatform()
+  const portal = usePortal()
   if (!account) return <a className="btn primary" href={`#/login?next=${encodeURIComponent(window.location.hash.slice(1) || '/studios')}`}>Sign in</a>
   return (
     <details className="dropdown">
@@ -366,7 +367,7 @@ export function UserMenu({ role }: { role?: Role }) {
       <div className="dropdown-menu card">
         <p className="dropdown-title">{account.email}</p>
         <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>
-        <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>
+        {portal !== 'student' && <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>}
         {role === 'owner' && (
           <button
             className="menu-item"

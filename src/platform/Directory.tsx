@@ -1,4 +1,7 @@
-import { ArrowRight, CalendarDays, Lock, MapPin, Plus, Star } from 'lucide-react'
+import { useState, type FormEvent } from 'react'
+import { ArrowRight, CalendarDays, Lock, MapPin, Plus, Search, Star } from 'lucide-react'
+import { usePortal } from '../lib/portal'
+import { navigate, useRoute } from '../lib/router'
 import { usePlatform } from '../lib/store'
 import { averageRating } from '../lib/model'
 import { roleIn, studiosFor } from '../lib/platform'
@@ -12,16 +15,21 @@ import { initials, Logo } from '../ui'
  */
 export function Directory() {
   const { platform, account } = usePlatform()
+  const portal = usePortal()
+  const student = portal === 'student'
+  const route = useRoute()
+  const notFound = route.query.get('notfound')
   const now = new Date()
   const weekAhead = now.getTime() + 7 * 86_400_000
   if (!account) return null
   const { owned, joined } = studiosFor(platform, account.id)
 
-  const studios = [...owned, ...joined].map((s) => {
+  // In the student portal every studio is a place to book, including ones you run.
+  const studios = (student ? [...joined, ...owned] : [...owned, ...joined]).map((s) => {
     const upcoming = s.sessions.filter((x) => new Date(x.start) > now).sort((a, b) => a.start.localeCompare(b.start))
     return {
       s,
-      role: roleIn(s, account.id),
+      role: student ? ('member' as const) : roleIn(s, account.id),
       rating: averageRating(s),
       next: upcoming[0],
       thisWeek: upcoming.filter((x) => new Date(x.start).getTime() < weekAhead).length,
@@ -34,8 +42,13 @@ export function Directory() {
       <PlatformHeader />
       <main className="platform-content">
         <section className="dir-hero">
-          <h1>Your studios</h1>
-          <p className="muted">Studios you book with or run. To join a new studio, open the booking link it shared with you.</p>
+          <h1>{student ? `Hi ${account.name.split(' ')[0]}` : 'Your studios'}</h1>
+          <p className="muted">
+            {student
+              ? 'Your studios are below. To add one, open the booking link it shared, or enter it here.'
+              : 'Studios you book with or run. To join a new studio, open the booking link it shared with you.'}
+          </p>
+          <FindStudio notFound={notFound} />
         </section>
 
         <ul className="studio-grid">
@@ -77,25 +90,52 @@ export function Directory() {
               <h2 className="flush">No studios yet</h2>
               <p className="muted">
                 For privacy, studios on Aerelle aren't listed publicly. Open the booking link your studio shared
-                (on Instagram, WhatsApp or their website) and you'll be able to book straight away.
+                (on Instagram, WhatsApp or their website), or paste it in the box above, and you can book straight away.
               </p>
             </li>
           )}
         </ul>
 
-        <section className="card cta-card">
+        {!student && <section className="card cta-card">
           <div>
             <h2 className="flush">Run a studio?</h2>
             <p className="muted">Set up your timetable, packages and members in a few minutes. You get your own private booking link to share.</p>
           </div>
           <a className="btn primary" href="#/new-studio"><Plus size={16} /> Create your studio</a>
-        </section>
+        </section>}
       </main>
     </div>
   )
 }
 
+/** Open a studio by its booking link or code. Exact matches only: studios can't be searched or listed. */
+function FindStudio({ notFound }: { notFound: string | null }) {
+  const [value, setValue] = useState('')
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    const v = value.trim()
+    const slug = (v.match(/\/s\/([^/?#\s]+)/)?.[1] ?? v).toLowerCase().replace(/[^a-z0-9-]/g, '')
+    if (slug) navigate(`/s/${slug}/schedule`)
+  }
+  return (
+    <form className="find-studio" onSubmit={submit}>
+      <div className="global-search dir-search">
+        <Search size={16} />
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Studio link or code, e.g. aligne-pilates"
+          aria-label="Studio booking link or code"
+        />
+      </div>
+      <button className="btn primary">Open studio</button>
+      {notFound && <p className="error small">No studio uses the code “{notFound}”. Check the link your studio shared.</p>}
+    </form>
+  )
+}
+
 export function PlatformHeader() {
+  const student = usePortal() === 'student'
   return (
     <header className="member-header">
       <div className="member-header-inner">
@@ -107,8 +147,8 @@ export function PlatformHeader() {
           </span>
         </a>
         <nav aria-label="Main" className="member-nav">
-          <a href="#/studios" aria-current={location.hash.startsWith('#/studios') ? 'page' : undefined}><CalendarDays size={17} /> Your studios</a>
-          <a href="#/new-studio" aria-current={location.hash.startsWith('#/new-studio') ? 'page' : undefined}><Plus size={17} /> Create a studio</a>
+          <a href="#/studios" aria-current={location.hash.startsWith('#/studios') ? 'page' : undefined}><CalendarDays size={17} /> {student ? 'My studios' : 'Your studios'}</a>
+          {!student && <a href="#/new-studio" aria-current={location.hash.startsWith('#/new-studio') ? 'page' : undefined}><Plus size={17} /> Create a studio</a>}
         </nav>
         <div className="header-actions">
           <UserMenu />
