@@ -249,6 +249,7 @@ function StudioSwitcher() {
   const { state } = useStore()
   if (!account) return null
   const { owned, joined } = studiosFor(platform, account.id)
+  const student = usePortal() === 'student'
   const current = state.studio
   const item = (s: (typeof owned)[number], role: Role) => (
     <a key={s.studio.id} href={`#${studioHome(s.studio.slug, role)}`} className="menu-item switch-item" onClick={(e) => closeDropdown(e.currentTarget)}>
@@ -271,13 +272,25 @@ function StudioSwitcher() {
         <ChevronsUpDown size={16} className="muted" />
       </summary>
       <div className="dropdown-menu card switcher-menu">
-        {owned.length > 0 && <p className="dropdown-title">Studios you run</p>}
-        {owned.map((s) => item(s, 'owner'))}
-        {joined.length > 0 && <p className="dropdown-title">Studios you book at</p>}
-        {joined.map((s) => item(s, 'member'))}
-        <div className="menu-sep" />
-        <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>
-        <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>
+        {student ? (
+          <>
+            {/* Student portal: every studio you belong to is a place to book; find others by name. */}
+            <p className="dropdown-title">Studios you book at</p>
+            {[...joined, ...owned].map((s) => item(s, 'member'))}
+            <div className="menu-sep" />
+            <a className="menu-item" href="#/find" onClick={(e) => closeDropdown(e.currentTarget)}><Search size={16} /> Find a studio</a>
+          </>
+        ) : (
+          <>
+            {owned.length > 0 && <p className="dropdown-title">Studios you run</p>}
+            {owned.map((s) => item(s, 'owner'))}
+            {joined.length > 0 && <p className="dropdown-title">Studios you book at</p>}
+            {joined.map((s) => item(s, 'member'))}
+            <div className="menu-sep" />
+            <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>
+            <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>
+          </>
+        )}
       </div>
     </details>
   )
@@ -382,9 +395,7 @@ export function UserMenu({ role }: { role?: Role }) {
       </summary>
       <div className="dropdown-menu card">
         <p className="dropdown-title">{account.email}</p>
-        {portal === 'student'
-          ? <a className="menu-item" href="#/find" onClick={(e) => closeDropdown(e.currentTarget)}><Search size={16} /> Find a studio</a>
-          : <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>}
+        {portal !== 'student' && <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>}
         {portal !== 'student' && <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>}
         {role === 'owner' && (
           <button
