@@ -380,8 +380,12 @@ function Alerts() {
 
 /** Account menu; `role` is the person's role in the studio being shown, if any. */
 export function UserMenu({ role }: { role?: Role }) {
-  const { account, logout, resetDemo, mode } = usePlatform()
+  const { account, logout, resetDemo, mode, resetPassword } = usePlatform()
   const portal = usePortal()
+  const [resetSent, setResetSent] = useState(false)
+  // Student portal inside a studio: the profile menu also holds "Your account" and "Settings".
+  const inStudio = window.location.hash.startsWith('#/s/')
+  const studentAccount = portal === 'student' && role !== 'owner'
   if (!account) return <a className="btn primary" href={`#/login?next=${encodeURIComponent(window.location.hash.slice(1) || '/studios')}`}>Sign in</a>
   return (
     <details className="dropdown">
@@ -395,6 +399,22 @@ export function UserMenu({ role }: { role?: Role }) {
       </summary>
       <div className="dropdown-menu card">
         <p className="dropdown-title">{account.email}</p>
+        {studentAccount && inStudio && (
+          <>
+            <p className="dropdown-title menu-group">Your account</p>
+            <a className="menu-item" href={link('/bookings')} onClick={(e) => closeDropdown(e.currentTarget)}><CalendarCheck size={16} /> My classes</a>
+            <a className="menu-item" href={link('/credits')} onClick={(e) => closeDropdown(e.currentTarget)}><Layers size={16} /> My packages</a>
+            <a className="menu-item" href={link('/orders')} onClick={(e) => closeDropdown(e.currentTarget)}><Receipt size={16} /> My orders</a>
+          </>
+        )}
+        {studentAccount && (
+          <>
+            <p className="dropdown-title menu-group">Settings</p>
+            <button className="menu-item" disabled={resetSent} onClick={() => resetPassword(account.email).then((err) => !err && setResetSent(true))}>
+              <KeyRound size={16} /> {resetSent ? 'Reset link sent to your email' : 'Change password'}
+            </button>
+          </>
+        )}
         {portal !== 'student' && <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>}
         {portal !== 'student' && <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>}
         {role === 'owner' && (
@@ -415,7 +435,7 @@ export function UserMenu({ role }: { role?: Role }) {
             <RotateCcw size={16} /> Reset demo data
           </button>
         )}
-        <button className="menu-item" onClick={logout}><LogOut size={16} /> Sign out</button>
+        <button className="menu-item" onClick={logout}><LogOut size={16} /> {studentAccount ? 'Log out' : 'Sign out'}</button>
       </div>
     </details>
   )

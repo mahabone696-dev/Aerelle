@@ -1380,3 +1380,4 @@ body { background: #f7fbfe; }
 .find-hit-text { display: grid; gap: 0.1rem; min-width: 0; }
 .find-hit-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .find-hit-text .small { display: inline-flex; align-items: center; gap: 0.25rem; }
+.dropdown-title.menu-group { margin-top: 0.4rem; padding-top: 0.6rem; border-top: 1px solid var(--line); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
