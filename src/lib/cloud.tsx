@@ -4,7 +4,7 @@ import {
   signOut, updateProfile, type User as FbUser,
 } from 'firebase/auth'
 import {
-  collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, query, setDoc, where, writeBatch, type DocumentData, type Query,
+  collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, query, runTransaction, setDoc, where, writeBatch, type DocumentData, type Query,
   type Unsubscribe, type WriteBatch,
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
@@ -105,6 +105,8 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
   const [activeSid, setActiveSid] = useState<string | null>(null)
   // The studio link being viewed ("aligne-pilates"), and the studio id it resolves to (undefined while looking it up).
   const [viewSlug, setViewSlug] = useState<string | null>(null)
+  // True in the student portal: owners then load only their own records, like any member.
+  const [studentView, setStudentView] = useState(false)
   const [slugSid, setSlugSid] = useState<{ slug: string; sid: string | null } | null>(null)
   const [active, setActive] = useState<Active | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -151,7 +153,13 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
 
   // Load only the studios this person needs: the one whose link is open, plus their own.
   const wanted = useMemo(() => [...new Set([...(viewSid ? [viewSid] : []), ...Object.keys(mine ?? {})])].sort(), [viewSid, mine])
-  const wantedKey = wanted.join(',')
+  // Studios whose full timetable history this person needs (owners in the studio portal, for reports).
+  // Everyone else loads classes from the last 180 days onward, which keeps phones fast.
+  const fullHistory = useMemo(
+    () => (studentView ? [] : Object.entries(mine ?? {}).filter(([, u]) => u.role === 'owner').map(([sid]) => sid)).sort(),
+    [mine, studentView],
+  )
+  const wantedKey = wanted.join(',') + '|' + fullHistory.join(',')
   useEffect(() => {
     const subs: Unsubscribe[] = []
     for (const sid of wanted) {
@@ -170,7 +178,9 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
           () => setSeen((all) => ({ ...all, [sid]: true })),
         ),
         onSnapshot(
-          collection(db, `studios/${sid}/sessions`),
+          fullHistory.includes(sid)
+            ? collection(db, `studios/${sid}/sessions`)
+            : query(collection(db, `studios/${sid}/sessions`), where('start', '>=', new Date(Date.now() - 180 * 86_400_000).toISOString())),
           (snap) => setSessions((all) => ({ ...all, [sid]: snap.docs.map((x) => x.data() as SessionDoc) })),
           () => setSessions((all) => ({ ...all, [sid]: [] })),
         ),
@@ -223,7 +233,7 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
   }, [uid])
 
   // Private records of the open studio: everything for owners, only their own for members.
-  const ownerOfActive = !!(uid && activeSid && studios?.[activeSid]?.ownerUids?.includes(uid))
+  const ownerOfActive = !!(uid && activeSid && !studentView && studios?.[activeSid]?.ownerUids?.includes(uid))
   useEffect(() => {
     setActive(null)
     if (!uid || !activeSid || !studios?.[activeSid]) return
@@ -382,6 +392,7 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
 
   // Members: when you're first in line and a spot opens, your device claims it.
   const attempted = useRef(new Set<string>())
+  const joining = useRef(new Set<string>())
   useEffect(() => {
     if (!uid || !active || active.owner || !studios?.[active.sid] || !active.data.bookings || !active.data.packages) return
     const state = buildState(active.sid)
@@ -506,18 +517,29 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
       },
       joinStudio: (sid) => {
         if (!account || !uid) return
-        const me: User = { ...account, id: uid, role: 'member', passwordHash: '', joinedAt: new Date().toISOString() }
-        setDoc(doc(db, `studios/${sid}/members/${uid}`), { ...memberDoc(me), claimed: true, studioId: sid }).catch((e) => setNotice(friendly(e)))
+        // Never overwrite an existing membership (an owner's role, or details the studio entered):
+        // only create one when this person has none at the studio yet.
+        if (studios[sid]?.ownerUids?.includes(uid) || joining.current.has(sid)) return
+        joining.current.add(sid)
+        const ref = doc(db, `studios/${sid}/members/${uid}`)
+        runTransaction(db, async (t) => {
+          if ((await t.get(ref)).exists()) return
+          const me: User = { ...account, id: uid, role: 'member', passwordHash: '', joinedAt: new Date().toISOString() }
+          t.set(ref, { ...memberDoc(me), claimed: true, studioId: sid })
+        })
+          .catch((e) => setNotice(friendly(e)))
+          .finally(() => joining.current.delete(sid))
       },
       applyTo,
       setActiveStudio: setActiveSid,
       setViewSlug,
+      setStudentView,
       resolvedSlug: slugPending ? null : viewSlug,
       activeReady,
       notice,
       dismissNotice: () => setNotice(null),
     }),
-    [ready, platform, account, verified, uid, applyTo, activeReady, notice, slugPending, viewSlug],
+    [ready, platform, account, verified, uid, applyTo, activeReady, notice, slugPending, viewSlug, studios],
   )
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>

@@ -65,6 +65,8 @@ export interface PlatformStore {
   setActiveStudio: (studioId: string | null) => void
   /** The studio link being viewed, so the store can load that one studio (there is no public list of studios). */
   setViewSlug: (slug: string | null) => void
+  /** Student portal: owners load only their own records there, like any member. */
+  setStudentView: (on: boolean) => void
   /** The studio link whose lookup has finished (found or not); until it matches the open link, keep waiting. */
   resolvedSlug: string | null
   /** True once the open studio's records (for the signed-in person's role) have loaded. */
@@ -151,6 +153,7 @@ export function LocalPlatformProvider({ children }: { children: ReactNode }) {
       resendVerification: async () => null,
       setActiveStudio: () => {},
       setViewSlug: setResolvedSlug,
+      setStudentView: () => {},
       resolvedSlug,
       activeReady: true,
       notice: null,

@@ -49,10 +49,11 @@ interface Tab {
 
 export function App() {
   const route = useRoute()
-  const { platform, account, joinStudio, ready: storeReady, setActiveStudio, setViewSlug, resolvedSlug, activeReady } = usePlatform()
+  const { platform, account, joinStudio, ready: storeReady, setActiveStudio, setViewSlug, setStudentView, resolvedSlug, activeReady } = usePlatform()
   setStudioBase(route.studio)
   const studio = route.studio ? studioBySlug(platform, route.studio) : undefined
   const portal = usePortal()
+  useEffect(() => setStudentView(portal === 'student'), [portal, setStudentView])
   const realRole = account && studio ? roleIn(studio, account.id) : null
   // An owner who chose the student portal uses this studio like any member.
   const role = realRole === 'owner' && portal === 'student' ? 'member' : realRole
@@ -128,11 +129,24 @@ export function App() {
 }
 
 function Loading() {
+  // On a slow connection, say so and offer a retry instead of spinning forever.
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 12_000)
+    return () => clearTimeout(t)
+  }, [])
   return (
     <div className="loading" role="status" aria-live="polite">
       <Logo size={40} />
       <span className="spinner" />
       <span className="muted small">Loading…</span>
+      {slow && (
+        <div className="loading-slow">
+          <p className="muted small">This is taking longer than usual. Check your connection, then try again.</p>
+          <button className="btn sm" onClick={() => window.location.reload()}>Try again</button>
+          <a className="link small" href="#/find">Back to Find a studio</a>
+        </div>
+      )}
     </div>
   )
 }

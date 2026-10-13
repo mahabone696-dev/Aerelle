@@ -1370,3 +1370,5 @@ body { background: #f7fbfe; }
 .find-privacy { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0 0; }
 .find-page input::placeholder { color: var(--muted) !important; }
 @media (max-width: 600px) { .find-page main { padding-top: 24px; } .find-hero { padding: 1.8rem 1.1rem; } }
+.loading-slow { display: grid; justify-items: center; gap: 0.6rem; max-width: 300px; text-align: center; margin-top: 0.6rem; }
+.loading-slow p { margin: 0; }
