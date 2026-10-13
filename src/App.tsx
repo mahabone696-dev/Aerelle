@@ -1,11 +1,12 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import {
   BarChart3, Bell, CalendarDays, CalendarCheck, Check, ChevronDown, ChevronsUpDown, Compass, LayoutDashboard, LogOut, Menu,
-  Package, Plus, RotateCcw, Search, Settings as SettingsIcon, Star, Ticket, Users, X,
+  KeyRound, Layers, LayoutGrid, Package, Plus, Receipt, RotateCcw, Search, Settings as SettingsIcon, Star, Tag, Ticket, Users, X,
 } from 'lucide-react'
 import { StudioScope, usePlatform, useStore } from './lib/store'
 import { averageRating, canRate, classesLeft, type Role } from './lib/model'
-import { homeFor, roleIn, studioBySlug, studiosFor } from './lib/platform'
+import { homeFor, roleIn, studioBySlug, studiosFor, type Platform } from './lib/platform'
 import { link, navigate, safeNext, setStudioBase, useRoute, type Route } from './lib/router'
 import { money, plural } from './lib/format'
 import { isStudioAuth, Login } from './pages/Login'
@@ -13,6 +14,8 @@ import { Schedule } from './pages/Schedule'
 import { Bookings } from './pages/Bookings'
 import { Rating } from './pages/Rating'
 import { Packs } from './pages/Packs'
+import { Orders } from './pages/Orders'
+import { setPortal, usePortal } from './lib/portal'
 import { Overview } from './admin/Overview'
 import { Manage } from './admin/Manage'
 import { Members } from './admin/Members'
@@ -27,10 +30,16 @@ import { initials, Logo } from './ui'
 
 const PATHS: Record<Role, Set<string>> = {
   owner: new Set(['/overview', '/schedule', '/members', '/packages', '/reports', '/rating', '/settings']),
-  member: new Set(['/schedule', '/bookings', '/rating', '/credits']),
+  member: new Set(['/schedule', '/bookings', '/rating', '/credits', '/orders']),
 }
 /** Pages anyone can open without signing in, like a studio's public booking page. */
 const PUBLIC_PATHS = new Set(['/schedule', '/credits'])
+/** Where the student portal opens: classes at a studio you book with (or run), else your studios. */
+function studentHome(platform: Platform, accountId: string) {
+  const { owned, joined } = studiosFor(platform, accountId)
+  const s = joined[0] ?? owned[0]
+  return s ? `/s/${s.studio.slug}/schedule` : '/studios'
+}
 const studioHome = (slug: string, role: Role) => `/s/${slug}${role === 'owner' ? '/overview' : '/schedule'}`
 
 interface Tab {
@@ -46,8 +55,11 @@ export function App() {
   const { platform, account, joinStudio, ready: storeReady, setActiveStudio, setViewSlug, resolvedSlug, activeReady } = usePlatform()
   setStudioBase(route.studio)
   const studio = route.studio ? studioBySlug(platform, route.studio) : undefined
-  const role = account && studio ? roleIn(studio, account.id) : null
-  const home = account ? homeFor(platform, account.id) : '/studios'
+  const portal = usePortal()
+  const realRole = account && studio ? roleIn(studio, account.id) : null
+  // An owner who chose the student portal uses this studio like any member.
+  const role = realRole === 'owner' && portal === 'student' ? 'member' : realRole
+  const home = !account ? '/studios' : portal === 'student' ? studentHome(platform, account.id) : homeFor(platform, account.id)
   const isLogin = ['/login', '/signup', '/studio/login', '/studio/signup'].includes(route.full)
   const studioId = studio?.studio.id ?? null
   useEffect(() => setActiveStudio(studioId), [studioId, setActiveStudio])
@@ -63,10 +75,10 @@ export function App() {
     if (isLogin) {
       if (account) {
         // Studio sign-in goes to your studio's dashboard (or setting one up); student sign-in to your classes.
-        const { owned, joined } = studiosFor(platform, account.id)
-        const fallback = isStudioAuth(route.full)
-          ? owned[0] ? `/s/${owned[0].studio.slug}/overview` : '/new-studio'
-          : joined[0] ? `/s/${joined[0].studio.slug}/schedule` : owned[0] ? home : '/studios'
+        const { owned } = studiosFor(platform, account.id)
+        const studioSide = isStudioAuth(route.full)
+        setPortal(studioSide ? 'studio' : 'student')
+        const fallback = studioSide ? (owned[0] ? `/s/${owned[0].studio.slug}/overview` : '/new-studio') : studentHome(platform, account.id)
         navigate(safeNext(route.query.get('next'), fallback))
       }
     } else if (route.studio) {
@@ -355,6 +367,18 @@ export function UserMenu({ role }: { role?: Role }) {
         <p className="dropdown-title">{account.email}</p>
         <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>
         <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>
+        {role === 'owner' && (
+          <button
+            className="menu-item"
+            onClick={(e) => {
+              closeDropdown(e.currentTarget)
+              setPortal('student')
+              navigate('/schedule')
+            }}
+          >
+            <CalendarCheck size={16} /> Book as a student
+          </button>
+        )}
         <div className="menu-sep" />
         {mode === 'demo' && (
           <button className="menu-item" onClick={() => confirm('Reset all demo data?') && resetDemo()}>
@@ -364,6 +388,78 @@ export function UserMenu({ role }: { role?: Role }) {
         <button className="menu-item" onClick={logout}><LogOut size={16} /> Sign out</button>
       </div>
     </details>
+  )
+}
+
+/** The student portal's side menu, grouped like Vibefam's: the studio, your account, settings. */
+function StudentMenu({ route }: { route: Route }) {
+  const { account, logout, resetPassword, platform } = usePlatform()
+  const { state, user } = useStore()
+  const [open, setOpen] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
+  useEffect(() => setOpen(false), [route.full])
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+  if (!account || !user) return null
+  const runsThis = roleIn(state, account.id) === 'owner'
+  const ownsAny = studiosFor(platform, account.id).owned.length > 0
+  const item = (path: string, label: string, Icon: ComponentType<{ size?: number }>, query = '') => (
+    <a className="drawer-item" href={link(path + query)} aria-current={route.path === path && (!query || route.query.toString() === query.slice(1)) ? 'page' : undefined}>
+      <Icon size={20} /> {label}
+    </a>
+  )
+  return (
+    <>
+      <button className="icon-btn drawer-btn" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open}>
+        <Menu size={18} />
+      </button>
+      {open &&
+        createPortal(
+          <div className="drawer-wrap" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
+            <nav className="drawer" aria-label="Student menu">
+              <div className="drawer-head">
+                <div className="drawer-studio">
+                  <span className="studio-mark lg">{initials(state.studio.name)}</span>
+                  <strong>{state.studio.name}</strong>
+                  <button className="icon-btn" onClick={() => setOpen(false)} aria-label="Close menu"><X size={16} /></button>
+                </div>
+                <strong className="drawer-name">{account.name}</strong>
+                <span className="muted small">{account.email}</span>
+              </div>
+              <p className="drawer-label">Studio</p>
+              {item('/schedule', 'Browse classes', CalendarDays)}
+              {item('/credits', 'Buy packages', Tag, '?view=buy')}
+              {item('/rating', 'Reviews', Star)}
+              <p className="drawer-label">Your account</p>
+              {item('/bookings', 'My classes', CalendarCheck)}
+              {item('/credits', 'My packages', Layers)}
+              {item('/orders', 'My orders', Receipt)}
+              <p className="drawer-label">Settings</p>
+              <button className="drawer-item" disabled={resetSent} onClick={() => resetPassword(account.email).then((err) => !err && setResetSent(true))}>
+                <KeyRound size={20} /> {resetSent ? 'Check your email for a reset link' : 'Change password'}
+              </button>
+              <a className="drawer-item" href="#/studios"><LayoutGrid size={20} /> Your studios</a>
+              {(runsThis || ownsAny) && (
+                <button
+                  className="drawer-item"
+                  onClick={() => {
+                    setPortal('studio')
+                    navigate(runsThis ? `/s/${state.studio.slug}/overview` : '/studios')
+                  }}
+                >
+                  <LayoutDashboard size={20} /> Switch to studio portal
+                </button>
+              )}
+              <button className="drawer-item" onClick={logout}><LogOut size={20} /> Log out</button>
+            </nav>
+          </div>,
+          document.body,
+        )}
+    </>
   )
 }
 
@@ -437,12 +533,14 @@ function MemberShell({ route }: { route: Route }) {
     },
     { path: '/credits', label: 'Packages', icon: Ticket, render: () => <Packs /> },
   ]
-  const current = tabs.find((t) => t.path === route.path)
+  const pages: Tab[] = [...tabs, { path: '/orders', label: 'My orders', icon: Receipt, render: () => <Orders /> }]
+  const current = pages.find((t) => t.path === route.path)
 
   return (
     <div className="member">
       <header className="member-header">
         <div className="member-header-inner">
+          <StudentMenu route={route} />
           <StudioSwitcher />
           <nav aria-label="Main" className="member-nav">
             {tabs.map((t) => {

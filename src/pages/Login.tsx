@@ -3,6 +3,7 @@ import { ArrowRight, BarChart3, CalendarDays, CalendarCheck, Lock, Ticket, Users
 import { usePlatform } from '../lib/store'
 import { studioBySlug } from '../lib/platform'
 import { safeNext, type Route } from '../lib/router'
+import { setPortal } from '../lib/portal'
 import { LazyScene } from '../three/LazyScene'
 import { initials, Logo } from '../ui'
 
@@ -55,6 +56,7 @@ export function Login({ route }: { route: Route }) {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
+    setPortal(audience === 'studio' ? 'studio' : 'student')
     setStage(mode === 'login' ? 'Signing you in…' : 'Creating your account…')
     const err = mode === 'login' ? await login(email, password) : await signup(name, email, password)
     setError(err)

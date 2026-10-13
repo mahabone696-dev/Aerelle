@@ -1,3 +1,4 @@
+import { setPortal } from '../lib/portal'
 import { useState, type FormEvent } from 'react'
 import { Bike, Dumbbell, Flower2, Layers, Music2, Shield, Sparkles, Waves } from 'lucide-react'
 import { usePlatform } from '../lib/store'
@@ -21,6 +22,7 @@ export function NewStudio() {
     const { slug: created, error: err } = await createStudio(form)
     setBusy(false)
     if (err) return setError(err)
+    setPortal('studio') // you now run a studio: open its admin
     navigate(`/s/${created}/overview`)
   }
 

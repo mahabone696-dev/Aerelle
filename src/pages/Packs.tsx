@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from '../lib/store'
 import { activePackages, hasUsedTrial, purchase, quote, type PackageOption } from '../lib/model'
@@ -10,6 +10,11 @@ export function Packs() {
   const [promo, setPromo] = useState('')
   const [selected, setSelected] = useState<PackageOption | null>(null)
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+  // "Buy packages" in the menu jumps past your own packages to the catalogue.
+  const jumpToBuy = window.location.hash.includes('view=buy')
+  useEffect(() => {
+    if (jumpToBuy) document.getElementById('buy')?.scrollIntoView({ block: 'start' })
+  }, [jumpToBuy])
   // Visitors who haven't signed in can browse the catalogue; buying asks them to sign in first.
   const cur = state.studio.currency
   const mine = user ? activePackages(state, user.id) : []
@@ -64,6 +69,7 @@ export function Packs() {
         </ul>
       )}
 
+      <span id="buy" className="anchor" />
       {groups.map((g) => (
         <div key={g}>
           <h2>{g === 'Memberships' ? 'Monthly memberships' : `${g} packages`}</h2>
