@@ -2,11 +2,11 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   BarChart3, Bell, CalendarDays, CalendarCheck, Check, ChevronDown, ChevronsUpDown, Compass, LayoutDashboard, LogOut, Menu,
-  KeyRound, Layers, LayoutGrid, Package, Plus, Receipt, RotateCcw, Search, Settings as SettingsIcon, Star, Tag, Ticket, Users, X,
+  KeyRound, Layers, Package, Plus, Receipt, RotateCcw, Search, Settings as SettingsIcon, Star, Tag, Ticket, Users, X,
 } from 'lucide-react'
 import { StudioScope, usePlatform, useStore } from './lib/store'
 import { averageRating, canRate, classesLeft, type Role } from './lib/model'
-import { homeFor, roleIn, studioBySlug, studiosFor, type Platform } from './lib/platform'
+import { homeFor, roleIn, studioBySlug, studiosFor } from './lib/platform'
 import { link, navigate, safeNext, setStudioBase, useRoute, type Route } from './lib/router'
 import { money, plural } from './lib/format'
 import { isStudioAuth, Login } from './pages/Login'
@@ -24,6 +24,7 @@ import { Reports } from './admin/Reports'
 import { Reviews } from './admin/Reviews'
 import { Settings } from './admin/Settings'
 import { Directory } from './platform/Directory'
+import { FindStudio } from './platform/FindStudio'
 import { NewStudio } from './platform/NewStudio'
 import { Landing } from './platform/Landing'
 import { initials, Logo } from './ui'
@@ -34,12 +35,8 @@ const PATHS: Record<Role, Set<string>> = {
 }
 /** Pages anyone can open without signing in, like a studio's public booking page. */
 const PUBLIC_PATHS = new Set(['/schedule', '/credits'])
-/** Where the student portal opens: classes at a studio you book with (or run), else your studios. */
-function studentHome(platform: Platform, accountId: string) {
-  const { owned, joined } = studiosFor(platform, accountId)
-  const s = joined[0] ?? owned[0]
-  return s ? `/s/${s.studio.slug}/schedule` : '/studios'
-}
+/** The student portal opens on Find a studio. */
+const STUDENT_HOME = '/find'
 const studioHome = (slug: string, role: Role) => `/s/${slug}${role === 'owner' ? '/overview' : '/schedule'}`
 
 interface Tab {
@@ -59,7 +56,7 @@ export function App() {
   const realRole = account && studio ? roleIn(studio, account.id) : null
   // An owner who chose the student portal uses this studio like any member.
   const role = realRole === 'owner' && portal === 'student' ? 'member' : realRole
-  const home = !account ? '/studios' : portal === 'student' ? studentHome(platform, account.id) : homeFor(platform, account.id)
+  const home = !account ? '/studios' : portal === 'student' ? STUDENT_HOME : homeFor(platform, account.id)
   const isLogin = ['/login', '/signup', '/studio/login', '/studio/signup'].includes(route.full)
   const studioId = studio?.studio.id ?? null
   useEffect(() => setActiveStudio(studioId), [studioId, setActiveStudio])
@@ -78,12 +75,12 @@ export function App() {
         const { owned } = studiosFor(platform, account.id)
         const studioSide = isStudioAuth(route.full)
         setPortal(studioSide ? 'studio' : 'student')
-        const fallback = studioSide ? (owned[0] ? `/s/${owned[0].studio.slug}/overview` : '/new-studio') : studentHome(platform, account.id)
+        const fallback = studioSide ? (owned[0] ? `/s/${owned[0].studio.slug}/overview` : '/new-studio') : STUDENT_HOME
         navigate(safeNext(route.query.get('next'), fallback))
       }
     } else if (route.studio) {
       const query = route.query.toString()
-      if (!studio) navigate(`/studios?notfound=${encodeURIComponent(route.studio)}`)
+      if (!studio) navigate(`${account && portal === 'studio' ? '/studios' : '/find'}?notfound=${encodeURIComponent(route.studio)}`)
       else if (route.path === '/' || route.path === '/classes') navigate(`/s/${studio.studio.slug}/schedule`)
       else if (!account) {
         // Owner-only pages ask for the studio sign-in; member pages for the student one.
@@ -96,10 +93,13 @@ export function App() {
       if (!account) navigate(`/studio/signup?next=${encodeURIComponent('/new-studio')}`)
     } else if (route.full === '/studios') {
       if (!account) navigate('/login')
+      else if (portal === 'student') navigate('/find') // students find studios; they don't get a studio list
+    } else if (route.full === '/find') {
+      if (!account) navigate('/login?next=%2Ffind')
     } else if (route.full !== '/') {
       navigate(home)
     }
-  }, [route, account, studio, role, home, isLogin, joinStudio, ready, platform])
+  }, [route, account, studio, role, home, isLogin, joinStudio, ready, platform, portal])
 
   return (
     <>
@@ -114,6 +114,8 @@ export function App() {
         <StudioScope studio={studio}><PublicShell route={route} /></StudioScope>
       ) : studio && role && PATHS[role].has(route.path) ? (
         <StudioScope studio={studio}>{role === 'owner' ? <AdminShell route={route} /> : <MemberShell route={route} />}</StudioScope>
+      ) : route.full === '/find' && account ? (
+        <FindStudio />
       ) : route.full === '/studios' && account ? (
         <Directory />
       ) : route.full === '/new-studio' && account ? (
@@ -366,7 +368,9 @@ export function UserMenu({ role }: { role?: Role }) {
       </summary>
       <div className="dropdown-menu card">
         <p className="dropdown-title">{account.email}</p>
-        <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>
+        {portal === 'student'
+          ? <a className="menu-item" href="#/find" onClick={(e) => closeDropdown(e.currentTarget)}><Search size={16} /> Find a studio</a>
+          : <a className="menu-item" href="#/studios" onClick={(e) => closeDropdown(e.currentTarget)}><Compass size={16} /> Your studios</a>}
         {portal !== 'student' && <a className="menu-item" href="#/new-studio" onClick={(e) => closeDropdown(e.currentTarget)}><Plus size={16} /> Create a studio</a>}
         {role === 'owner' && (
           <button
@@ -443,7 +447,7 @@ function StudentMenu({ route }: { route: Route }) {
               <button className="drawer-item" disabled={resetSent} onClick={() => resetPassword(account.email).then((err) => !err && setResetSent(true))}>
                 <KeyRound size={20} /> {resetSent ? 'Check your email for a reset link' : 'Change password'}
               </button>
-              <a className="drawer-item" href="#/studios"><LayoutGrid size={20} /> Your studios</a>
+              <a className="drawer-item" href="#/find"><Search size={20} /> Find a studio</a>
               {(runsThis || ownsAny) && (
                 <button
                   className="drawer-item"

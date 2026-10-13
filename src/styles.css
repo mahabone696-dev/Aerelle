@@ -1355,3 +1355,18 @@ body { background: #f7fbfe; }
 .find-studio .dir-search { flex: 1 1 320px; max-width: 460px; margin: 0; }
 .find-studio .error { flex-basis: 100%; text-align: center; margin: 0; }
 .find-studio input::placeholder { color: var(--muted) !important; }
+
+/* ---------- Student portal: Find your studio ---------- */
+.find-page main { padding-top: 56px; }
+.find-hero { display: grid; justify-items: center; gap: 0.9rem; text-align: center; padding: 2.4rem 1.6rem; position: relative; overflow: hidden; }
+.find-hero::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--grad); }
+.find-icon { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--grad-soft); color: #3a7fe0; }
+.find-hero h1 { margin: 0; font-size: 1.8rem; color: var(--navy); }
+.find-hero > p { margin: 0; max-width: 44ch; }
+.find-form { display: grid; gap: 0.7rem; width: 100%; max-width: 480px; margin-top: 0.4rem; }
+.find-form .dir-search { max-width: none; margin: 0; }
+.find-form .btn { width: 100%; }
+.find-hero .banner { width: 100%; max-width: 480px; text-align: left; }
+.find-privacy { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0 0; }
+.find-page input::placeholder { color: var(--muted) !important; }
+@media (max-width: 600px) { .find-page main { padding-top: 24px; } .find-hero { padding: 1.8rem 1.1rem; } }
