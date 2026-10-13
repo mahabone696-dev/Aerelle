@@ -2,21 +2,21 @@ import { useState } from 'react'
 import { useStore } from '../lib/store'
 import { activePackages, hasUsedTrial, purchase, quote, type PackageOption } from '../lib/model'
 import { fmtDate, money, plural } from '../lib/format'
+import { navigate } from '../lib/router'
 
 export function Packs() {
   const { state, user, apply } = useStore()
   const [promo, setPromo] = useState('')
   const [selected, setSelected] = useState<PackageOption | null>(null)
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
-  if (!user) return null
-
+  // Visitors who haven't signed in can browse the catalogue; buying asks them to sign in first.
   const cur = state.studio.currency
-  const mine = activePackages(state, user.id)
-  const past = state.memberPackages.filter((p) => p.userId === user.id && !mine.includes(p))
-  const usedTrial = hasUsedTrial(state, user.id)
+  const mine = user ? activePackages(state, user.id) : []
+  const past = user ? state.memberPackages.filter((p) => p.userId === user.id && !mine.includes(p)) : []
+  const usedTrial = user ? hasUsedTrial(state, user.id) : false
   const visible = state.packageOptions.filter((p) => !p.hidden && !(p.trial && usedTrial))
   const groups = [...new Set(visible.map((p) => (p.recurring ? 'Memberships' : p.groups.join(' + '))))]
-  const unpaid = state.orders.filter((o) => o.userId === user.id && !o.paid)
+  const unpaid = user ? state.orders.filter((o) => o.userId === user.id && !o.paid) : []
 
   let preview: ReturnType<typeof quote> | null = null
   let promoError = ''
@@ -43,8 +43,8 @@ export function Packs() {
         </p>
       )}
 
-      <h2>My packages</h2>
-      {mine.length === 0 ? (
+      {user && <h2>My packages</h2>}
+      {!user ? null : mine.length === 0 ? (
         <p className="empty">No active packages. Pick one below to start booking.</p>
       ) : (
         <ul className="rows">
@@ -78,7 +78,14 @@ export function Packs() {
                     {plural(p.classes, 'class', 'classes')} · valid {validity(p.validDays)}
                     {p.classes > 1 && ` · ${money(cur, Math.round(p.price / p.classes))} per class`}
                   </p>
-                  <button className="btn primary block" onClick={() => { setSelected(p); setMsg(null) }}>
+                  <button
+                    className="btn primary block"
+                    onClick={() => {
+                      if (!user) return navigate(`/login?next=${encodeURIComponent(`/s/${state.studio.slug}/credits`)}`)
+                      setSelected(p)
+                      setMsg(null)
+                    }}
+                  >
                     {p.recurring ? 'Join' : 'Buy'}
                   </button>
                 </li>
@@ -87,7 +94,7 @@ export function Packs() {
         </div>
       ))}
 
-      {selected && preview && (
+      {user && selected && preview && (
         <div className="sheet" role="dialog" aria-label="Checkout">
           <div className="card checkout">
             <h3>{selected.name}</h3>

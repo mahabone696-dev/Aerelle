@@ -29,6 +29,8 @@ const PATHS: Record<Role, Set<string>> = {
   owner: new Set(['/overview', '/schedule', '/members', '/packages', '/reports', '/rating', '/settings']),
   member: new Set(['/schedule', '/bookings', '/rating', '/credits']),
 }
+/** Pages anyone can open without signing in, like a studio's public booking page. */
+const PUBLIC_PATHS = new Set(['/schedule', '/credits'])
 const studioHome = (slug: string, role: Role) => `/s/${slug}${role === 'owner' ? '/overview' : '/schedule'}`
 
 interface Tab {
@@ -57,7 +59,10 @@ export function App() {
     } else if (route.studio) {
       const query = route.query.toString()
       if (!studio) navigate('/studios')
-      else if (!account) navigate(`/login?next=${encodeURIComponent(route.full + (query ? `?${query}` : ''))}`)
+      else if (route.path === '/' || route.path === '/classes') navigate(`/s/${studio.studio.slug}/schedule`)
+      else if (!account) {
+        if (!PUBLIC_PATHS.has(route.path)) navigate(`/login?next=${encodeURIComponent(route.full + (query ? `?${query}` : ''))}`)
+      }
       else if (!role) joinStudio(studio.studio.id) // opening a studio you're not in yet makes you a member
       else if (!PATHS[role].has(route.path)) navigate(studioHome(studio.studio.slug, role))
     } else if (route.full === '/new-studio') {
@@ -76,6 +81,8 @@ export function App() {
         <Landing />
       ) : !ready || (studio && !activeReady) ? (
         <Loading />
+      ) : studio && !account && PUBLIC_PATHS.has(route.path) ? (
+        <StudioScope studio={studio}><PublicShell route={route} /></StudioScope>
       ) : studio && role && PATHS[role].has(route.path) ? (
         <StudioScope studio={studio}>{role === 'owner' ? <AdminShell route={route} /> : <MemberShell route={route} />}</StudioScope>
       ) : route.full === '/studios' ? (
@@ -340,6 +347,59 @@ export function UserMenu({ role }: { role?: Role }) {
         <button className="menu-item" onClick={logout}><LogOut size={16} /> Sign out</button>
       </div>
     </details>
+  )
+}
+
+// ---------- Visitor (not signed in) ----------
+
+/** A studio's public booking page: browse classes and packages; booking or buying asks you to sign in. */
+function PublicShell({ route }: { route: Route }) {
+  const { state } = useStore()
+  const rating = averageRating(state)
+  const next = encodeURIComponent(`/s/${state.studio.slug}${route.path}`)
+  const tabs: Tab[] = [
+    { path: '/schedule', label: 'Classes', icon: CalendarDays, render: () => <Schedule /> },
+    { path: '/credits', label: 'Packages', icon: Ticket, render: () => <Packs /> },
+  ]
+  const current = tabs.find((t) => t.path === route.path)
+  return (
+    <div className="member public">
+      <header className="member-header">
+        <div className="member-header-inner">
+          <div className="switcher-btn public-brand">
+            <span className="studio-mark lg">{initials(state.studio.name)}</span>
+            <span className="brand-text">
+              <span className="brand-name">{state.studio.name}</span>
+              <span className="brand-sub">
+                {state.studio.location}
+                {rating && <> · <Star size={11} className="star-icon" /> {rating.average.toFixed(1)}</>}
+              </span>
+            </span>
+          </div>
+          <nav aria-label="Main" className="member-nav">
+            {tabs.map((t) => {
+              const Icon = t.icon
+              return (
+                <a key={t.path} href={link(t.path)} aria-current={route.path === t.path ? 'page' : undefined}>
+                  <Icon size={17} />
+                  <span>{t.label}</span>
+                </a>
+              )
+            })}
+          </nav>
+          <div className="header-actions">
+            <a className="btn sm" href={`#/login?next=${next}`}>Sign in</a>
+            <a className="btn primary sm" href={`#/signup?next=${next}`}>Sign up</a>
+          </div>
+        </div>
+      </header>
+      <main className="member-content" key={route.full}>
+        {current?.render()}
+      </main>
+      <footer className="public-foot">
+        <a href="#/"><Logo size={18} /> Powered by <strong>Aerelle</strong></a>
+      </footer>
+    </div>
   )
 }
 

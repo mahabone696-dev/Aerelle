@@ -221,8 +221,8 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
       const data = isActive ? active!.data : {}
       const ownBookings = (data.bookings ?? []).map((d) => strip<Booking>(d))
       let bookings = ownBookings
-      if (isActive && !active!.owner) {
-        // Other people's spots, without who they are.
+      if (!(isActive && active!.owner)) {
+        // Other people's spots, without who they are (also for visitors who haven't signed in).
         const ownIds = new Set(ownBookings.map((b) => b.id))
         const others: Booking[] = []
         for (const s of sessDocs) {
