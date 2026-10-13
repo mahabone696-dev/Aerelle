@@ -2,6 +2,14 @@
 //   node --experimental-strip-types scripts/seed-emulator.ts
 import { seedState } from '../src/lib/seed.ts'
 
+// Same search keys as searchTokens() in src/lib/platform.ts (kept inline: that module can't load under plain node).
+const searchTokens = (name: string) => {
+  const out = new Set<string>()
+  const words = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-')
+  for (const w of words) for (let n = 3; n <= Math.min(w.length, 20); n++) out.add(w.slice(0, n))
+  return [...out]
+}
+
 const PROJECT = 'aerelle-studio-696'
 const AUTH = 'http://127.0.0.1:9099'
 const FS = `http://127.0.0.1:8085/v1/projects/${PROJECT}/databases/(default)/documents`
@@ -33,6 +41,7 @@ const writes: object[] = []
 const put = (p: string, data: Record<string, unknown>) => writes.push({ update: { name: name(p), fields: fields({ ...data, studioId: sid }) } })
 put(`studios/${sid}`, { ...s.studio, classTypes: s.classTypes, staff: s.staff, packageOptions: s.packageOptions, ownerUids: ['u-owner'] })
 put(`slugs/${s.studio.slug}`, { studioId: sid, createdBy: 'u-owner' })
+for (const t of searchTokens(s.studio.name)) put(`searchIndex/${t}/studios/${sid}`, { sid, slug: s.studio.slug, name: s.studio.name, location: s.studio.location })
 for (const u of s.users) { const { passwordHash: _p, ...rest } = u; put(`studios/${sid}/members/${u.id}`, { ...rest, email: u.email.toLowerCase(), claimed: true }) }
 for (const x of s.sessions) {
   const mine = s.bookings.filter((b) => b.sessionId === x.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt))

@@ -53,6 +53,14 @@ describe('public data', () => {
       await assertFails(getDocs(query(collectionGroup(db, 'ratings'))))
     }
   })
+  it('name search: anyone can look up one search key; only owners write their own entries; keys cannot be listed', async () => {
+    await assertSucceeds(setDoc(doc(as('ownerA'), `searchIndex/ali/studios/${A}`), { sid: A, slug: 'a', name: 'A studio', location: 'X' }))
+    await assertSucceeds(getDocs(collection(anon(), 'searchIndex/ali/studios')))
+    await assertFails(setDoc(doc(as('ownerA'), `searchIndex/ali/studios/${B}`), { sid: B, slug: 'b', name: 'Hijack', location: '' }))
+    await assertFails(setDoc(doc(as('alice'), `searchIndex/ali/studios/${A}`), { sid: A, slug: 'a', name: 'Spoof', location: '' }))
+    await assertFails(getDocs(collection(anon(), 'searchIndex')))
+    await assertFails(getDocs(query(collectionGroup(anon(), 'studios'))))
+  })
   it('nobody signed out can read members, bookings, packages or orders', async () => {
     for (const path of ['members/alice', 'bookings/b1', 'packages/p1', 'orders/o1']) {
       await assertFails(getDoc(doc(anon(), `studios/${A}/${path}`)))

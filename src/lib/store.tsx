@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BookingError, newId, type State, type User } from './model'
-import { createStudio, joinStudio, syncAccounts, type Account, type NewStudioInput, type Platform } from './platform'
+import { createStudio, joinStudio, matchesSearch, slugify, syncAccounts, type Account, type NewStudioInput, type Platform, type StudioHit } from './platform'
 import { seedPlatform } from './seed'
 
 // Local-only persistence. Swap load/save for API calls to put this behind a real backend;
@@ -59,6 +59,8 @@ export interface PlatformStore {
   /** Creates a studio owned by the signed-in account; returns its slug, or an error message. */
   createStudio: (input: NewStudioInput) => Promise<{ slug?: string; error?: string }>
   joinStudio: (studioId: string) => void
+  /** Studios whose name has a word starting with each word typed (at least 3 letters). Never a full list. */
+  searchStudios: (query: string) => Promise<StudioHit[]>
   /** Runs a model action against one studio; returns an error message instead of throwing. */
   applyTo: (studioId: string, action: (s: State) => State) => string | null
   /** Tells the store which studio is open, so it can load that studio's private records. */
@@ -174,6 +176,10 @@ export function LocalPlatformProvider({ children }: { children: ReactNode }) {
         }
       },
       joinStudio: (studioId) => accountId && setPlatform((p) => joinStudio(p, studioId, accountId)),
+      searchStudios: async (q) =>
+        slugify(q).replace(/-/g, '').length < 3
+          ? []
+          : platform.studios.filter((s) => matchesSearch(s.studio.name, q)).slice(0, 10).map((s) => ({ slug: s.studio.slug, name: s.studio.name, location: s.studio.location })),
       applyTo: (studioId, action) => {
         try {
           const current = platform.studios.find((s) => s.studio.id === studioId)

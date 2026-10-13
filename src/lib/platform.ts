@@ -37,6 +37,24 @@ export function uniqueSlug(p: Platform, name: string, exceptId?: string) {
   return slug
 }
 
+/**
+ * Search keys for a studio name: every 3+ letter start of each word ("aligne pilates" -> "ali", "alig", ...,
+ * "pil", ..., "pilates"). Students find a studio by typing the start of any word in its name.
+ */
+export function searchTokens(name: string) {
+  const out = new Set<string>()
+  for (const word of slugify(name).split('-')) for (let n = 3; n <= Math.min(word.length, 20); n++) out.add(word.slice(0, n))
+  return [...out].slice(0, 120)
+}
+
+/** Whether every word typed starts a word of the studio name. */
+export function matchesSearch(name: string, query: string) {
+  const words = slugify(name).split('-')
+  return slugify(query).split('-').filter(Boolean).every((q) => words.some((w) => w.startsWith(q)))
+}
+
+export interface StudioHit { slug: string; name: string; location: string }
+
 export const studioBySlug = (p: Platform, slug: string) => p.studios.find((s) => s.studio.slug === slug)
 
 export const roleIn = (studio: State, accountId: string) => studio.users.find((u) => u.id === accountId)?.role ?? null

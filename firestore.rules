@@ -145,6 +145,16 @@ service cloud.firestore {
       }
     }
 
+    // Name search. Each search key (the start of a word in a studio's name, 3+ letters) lists the studios
+    // whose name has it. Someone has to type letters of a studio's name to find it: there is no full list,
+    // and keys can't be listed. Each studio's owners maintain its own entries.
+    match /searchIndex/{key}/studios/{sid} {
+      allow read: if true;
+      allow create, update: if isOwner(sid) && request.resource.data.sid == sid
+        && request.resource.data.keys().hasOnly(['sid', 'slug', 'name', 'location']);
+      allow delete: if isOwner(sid);
+    }
+
     // Searches across studios: a person can find only their own memberships (and placeholders to claim by
     // verified email). Timetables and ratings can't be searched across studios.
     match /{path=**}/members/{memberId} {

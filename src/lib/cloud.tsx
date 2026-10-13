@@ -4,7 +4,7 @@ import {
   signOut, updateProfile, type User as FbUser,
 } from 'firebase/auth'
 import {
-  collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, query, runTransaction, setDoc, where, writeBatch, type DocumentData, type Query,
+  collection, collectionGroup, doc, getDoc, getDocs, limit, onSnapshot, query, runTransaction, setDoc, where, writeBatch, type DocumentData, type Query,
   type Unsubscribe, type WriteBatch,
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
@@ -12,7 +12,7 @@ import {
   BookingError, claimWaitlistSpot, spotsLeft, waitlist, type Booking, type ClassType, type MemberPackage, type Order,
   type PackageOption, type PromoCode, type Rating, type Session, type Staff, type State, type Studio, type User,
 } from './model'
-import { createStudio as buildStudio, type Account, type Platform } from './platform'
+import { createStudio as buildStudio, matchesSearch, searchTokens, slugify, type Account, type Platform, type StudioHit } from './platform'
 import { PlatformContext, type PlatformStore } from './store'
 
 // Firebase-backed store. The booking rules in model.ts stay pure: every change is computed on a State
@@ -393,6 +393,23 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
   // Members: when you're first in line and a spot opens, your device claims it.
   const attempted = useRef(new Set<string>())
   const joining = useRef(new Set<string>())
+
+  // Owners keep their studio findable by name: one small entry per search key (searchIndex/{key}/studios/{sid}).
+  // Each key can only be read by someone who types it, so studios still can't be listed.
+  useEffect(() => {
+    if (!uid || !active?.owner) return
+    const sid = active.sid
+    const meta = studios?.[sid] as (StudioDoc & { searchTokens?: string[]; indexedName?: string }) | undefined
+    if (!meta?.name) return
+    const tokens = searchTokens(meta.name)
+    const entry = `${meta.name}|${meta.location}|${meta.slug}`
+    if (meta.indexedName === entry) return
+    const batch = writeBatch(db)
+    for (const t of tokens) batch.set(doc(db, `searchIndex/${t}/studios/${sid}`), { sid, slug: meta.slug, name: meta.name, location: meta.location ?? '' })
+    for (const t of meta.searchTokens ?? []) if (!tokens.includes(t)) batch.delete(doc(db, `searchIndex/${t}/studios/${sid}`))
+    batch.update(doc(db, 'studios', sid), { searchTokens: tokens, indexedName: entry })
+    batch.commit().catch(() => {})
+  }, [uid, active?.owner, active?.sid, studios])
   useEffect(() => {
     if (!uid || !active || active.owner || !studios?.[active.sid] || !active.data.bookings || !active.data.packages) return
     const state = buildState(active.sid)
@@ -514,6 +531,14 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
           const code = (e as { code?: string })?.code ?? ''
           return { error: code.includes('permission-denied') ? 'That studio name is taken. Try a slightly different one.' : friendly(e) }
         }
+      },
+      searchStudios: async (q) => {
+        const words = slugify(q).split('-').filter((w) => w.length >= 3)
+        if (!words.length) return []
+        const key = words.sort((a, b) => b.length - a.length)[0].slice(0, 20)
+        const snap = await getDocs(query(collection(db, `searchIndex/${key}/studios`), limit(20)))
+        const hits: StudioHit[] = snap.docs.map((d) => ({ slug: d.data().slug, name: d.data().name, location: d.data().location ?? '' }))
+        return hits.filter((h) => matchesSearch(h.name, q)).slice(0, 10)
       },
       joinStudio: (sid) => {
         if (!account || !uid) return

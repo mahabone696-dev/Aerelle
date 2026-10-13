@@ -1372,3 +1372,11 @@ body { background: #f7fbfe; }
 @media (max-width: 600px) { .find-page main { padding-top: 24px; } .find-hero { padding: 1.8rem 1.1rem; } }
 .loading-slow { display: grid; justify-items: center; gap: 0.6rem; max-width: 300px; text-align: center; margin-top: 0.6rem; }
 .loading-slow p { margin: 0; }
+.find-results { width: 100%; max-width: 480px; text-align: left; }
+.find-results ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.find-hit { display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem 0.9rem; border: 1px solid var(--line); border-radius: 14px; background: #fff; text-decoration: none; color: var(--navy); transition: border-color 0.15s, box-shadow 0.15s; }
+.find-hit:hover { border-color: #a9d3f0; box-shadow: 0 6px 16px -10px rgb(56 150 220 / 0.5); }
+.find-hit > svg { margin-left: auto; color: #3a7fe0; flex: none; }
+.find-hit-text { display: grid; gap: 0.1rem; min-width: 0; }
+.find-hit-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.find-hit-text .small { display: inline-flex; align-items: center; gap: 0.25rem; }
