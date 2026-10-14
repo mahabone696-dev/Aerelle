@@ -319,8 +319,8 @@ function HeroMock() {
           ))}
         </ul>
       </div>
-      <div className="card mock-float one"><ListChecks size={16} /> <span><strong>Waitlist</strong><span className="muted tiny block">Sam moved into HIIT Express</span></span></div>
-      <div className="card mock-float two"><Star size={16} className="star-icon" /> <span><strong>4.9 rating</strong><span className="muted tiny block">“Best class all week!”</span></span></div>
+      <div className="card mock-float one"><ListChecks size={16} /> <span><strong>Waitlist</strong><span className="muted tiny block">Next in line is booked in automatically</span></span></div>
+      <div className="card mock-float two"><Star size={16} className="star-icon" /> <span><strong>Class ratings</strong><span className="muted tiny block">Members rate each class they attend</span></span></div>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { ArrowRight, BarChart3, CalendarDays, CalendarCheck, Lock, Ticket, Users } from 'lucide-react'
-import { usePlatform } from '../lib/store'
+import { DEMO, usePlatform } from '../lib/store'
 import { studioBySlug } from '../lib/platform'
 import { safeNext, type Route } from '../lib/router'
 import { setPortal } from '../lib/portal'
@@ -67,6 +67,7 @@ export function Login({ route }: { route: Route }) {
   }
 
   const fillDemo = (who: 'member' | 'owner') => {
+    if (!DEMO) return
     setMode('login')
     setEmail(`${who}@aerelle.test`)
     setPassword('demo1234')
@@ -154,7 +155,7 @@ export function Login({ route }: { route: Route }) {
           </button>
         )}
         {info && <p className="ok banner" role="status">{info}</p>}
-        {storeMode === 'demo' && (
+        {DEMO && storeMode === 'demo' && (
           <div className="demo">
             <span className="muted small">Try the demo:</span>
             <button type="button" className="link" onClick={() => fillDemo(audience === 'studio' ? 'owner' : 'member')}>
