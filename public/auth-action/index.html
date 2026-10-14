@@ -1,0 +1,5 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Aerelle</title>
+<!-- Email links arrive at /auth-action?mode=…&oobCode=…; the app routes with #, so hand the query over. -->
+<script>location.replace('/#/auth-action' + location.search)</script>

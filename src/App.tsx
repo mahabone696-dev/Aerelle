@@ -15,6 +15,7 @@ import { Bookings } from './pages/Bookings'
 import { Rating } from './pages/Rating'
 import { Packs } from './pages/Packs'
 import { Orders } from './pages/Orders'
+import { AuthAction } from './pages/AuthAction'
 import { setPortal, usePortal } from './lib/portal'
 import { Overview } from './admin/Overview'
 import { Manage } from './admin/Manage'
@@ -96,6 +97,8 @@ export function App() {
     } else if (route.full === '/studios') {
       if (!account) navigate('/login')
       else if (portal === 'student') navigate('/find') // students find studios; they don't get a studio list
+    } else if (route.full === '/auth-action') {
+      // Email links (verify email, reset password) work signed in or out.
     } else if (route.full === '/profile') {
       if (!account) navigate('/login?next=%2Fprofile')
     } else if (route.full === '/find') {
@@ -108,7 +111,9 @@ export function App() {
   return (
     <>
       <Notice />
-      {isLogin ? (
+      {route.full === '/auth-action' ? (
+        <AuthAction route={route} />
+      ) : isLogin ? (
         <Login route={route} />
       ) : route.full === '/' ? (
         <Landing />

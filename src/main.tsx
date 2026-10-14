@@ -5,6 +5,9 @@ import { CloudPlatformProvider } from './lib/cloud'
 import { App } from './App'
 import './styles.css'
 
+// Links in Aerelle's emails arrive at /auth-action?mode=…&oobCode=…; the app routes with #, so move them there.
+if (location.pathname.replace(/\/+$/, '') === '/auth-action') history.replaceState(null, '', '/#/auth-action' + location.search)
+
 const Provider = DEMO ? LocalPlatformProvider : CloudPlatformProvider
 
 // No zooming. iPhones ignore the viewport's user-scalable=no, so block pinch gestures directly,

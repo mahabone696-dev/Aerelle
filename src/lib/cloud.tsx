@@ -126,7 +126,8 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const check = async () => {
       const u = auth.currentUser
-      if (!u || u.emailVerified) return
+      if (!u) return
+      if (u.emailVerified) return setVerified(true)
       await u.reload().catch(() => {})
       if (auth.currentUser?.emailVerified) {
         await auth.currentUser.getIdToken(true)
@@ -432,7 +433,14 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     ;(async () => {
       try {
-        const found = await getDocs(query(collectionGroup(db, 'members'), where('email', '==', account.email.toLowerCase())))
+        // Right after verifying, the database may not have the new "verified" sign-in token yet: refresh and retry once.
+        const lookup = () => getDocs(query(collectionGroup(db, 'members'), where('email', '==', account.email.toLowerCase())))
+        const found = await lookup().catch(async (e) => {
+          if (!String((e as { code?: string })?.code).includes('permission-denied')) throw e
+          await auth.currentUser?.getIdToken(true)
+          await new Promise((r) => setTimeout(r, 1500))
+          return lookup()
+        })
         for (const m of found.docs) {
           const data = m.data()
           if (cancelled || data.id === uid || data.claimed) continue
