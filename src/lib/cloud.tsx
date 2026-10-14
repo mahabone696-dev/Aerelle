@@ -12,7 +12,7 @@ import {
   BookingError, claimWaitlistSpot, spotsLeft, waitlist, type Booking, type ClassType, type MemberPackage, type Order,
   type PackageOption, type PromoCode, type Rating, type Session, type Staff, type State, type Studio, type User,
 } from './model'
-import { createStudio as buildStudio, matchesSearch, searchTokens, slugify, type Account, type Platform, type StudioHit } from './platform'
+import { createStudio as buildStudio, matchesSearch, searchTokens, slugify, type Account, type CreditSummary, type Platform, type StudioHit, summarizeCredits } from './platform'
 import { PlatformContext, type PlatformStore } from './store'
 
 // Firebase-backed store. The booking rules in model.ts stay pure: every change is computed on a State
@@ -531,6 +531,24 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
           const code = (e as { code?: string })?.code ?? ''
           return { error: code.includes('permission-denied') ? 'That studio name is taken. Try a slightly different one.' : friendly(e) }
         }
+      },
+      myCredits: async () => {
+        if (!uid) return []
+        // Only the signed-in person's own packages, across their studios (allowed by the rules).
+        const snap = await getDocs(query(collectionGroup(db, 'packages'), where('userId', '==', uid)))
+        const bySid = new Map<string, MemberPackage[]>()
+        for (const d of snap.docs) {
+          const sid = d.ref.parent.parent!.id
+          bySid.set(sid, [...(bySid.get(sid) ?? []), strip<MemberPackage>(d.data())])
+        }
+        const out: CreditSummary[] = []
+        for (const [sid, pkgs] of bySid) {
+          const meta = studios[sid] ?? (await getDoc(doc(db, 'studios', sid))).data()
+          if (!meta) continue
+          const c = summarizeCredits({ slug: meta.slug, name: meta.name, location: meta.location ?? '' }, pkgs)
+          if (c.classes > 0) out.push(c)
+        }
+        return out.sort((a, b) => a.name.localeCompare(b.name))
       },
       saveProfile: async ({ name, phone, birthday }) => {
         if (!uid || !auth.currentUser || !account) return 'Sign in first.'

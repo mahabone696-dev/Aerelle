@@ -32,6 +32,25 @@ async function post(url: string, body: unknown, headers: Record<string, string> 
 }
 
 const s = seedState(new Date())
+
+// Tests need at least one upcoming full Reformer class the demo member isn't in (to join its waitlist).
+// The generated timetable shifts with the date, so fill one deliberately.
+{
+  const soon = Date.now() + 26 * 3_600_000
+  const target = s.sessions
+    .filter((x) => x.group === 'Reformer' && new Date(x.start).getTime() > soon && !s.bookings.some((b) => b.sessionId === x.id && b.userId === 'u-demo'))
+    .sort((a, b) => a.start.localeCompare(b.start))[0]
+  if (target) {
+    const others = s.users.filter((u) => u.role === 'member' && u.id !== 'u-demo').map((u) => u.id)
+    let k = 0
+    for (const uid of others) {
+      const taken = s.bookings.filter((b) => b.sessionId === target.id && b.status === 'booked').length
+      if (taken >= target.capacity) break
+      if (s.bookings.some((b) => b.sessionId === target.id && b.userId === uid)) continue
+      s.bookings.push({ id: `test-full-${k++}`, userId: uid, sessionId: target.id, status: 'booked', createdAt: new Date().toISOString() })
+    }
+  }
+}
 const sid = s.studio.id
 // Logins (password demo1234) whose uid matches the demo records.
 for (const [localId, email, displayName] of [['u-owner', 'owner@aerelle.test', 'Studio Owner'], ['u-demo', 'member@aerelle.test', 'Alex Morgan']]) {

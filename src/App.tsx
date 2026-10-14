@@ -6,9 +6,9 @@ import {
 } from 'lucide-react'
 import { StudioScope, usePlatform, useStore } from './lib/store'
 import { averageRating, canRate, classesLeft, type Role } from './lib/model'
-import { homeFor, roleIn, studioBySlug, studiosFor } from './lib/platform'
+import { homeFor, roleIn, studioBySlug, studiosFor, type CreditSummary } from './lib/platform'
 import { link, navigate, safeNext, setStudioBase, useRoute, type Route } from './lib/router'
-import { money, plural } from './lib/format'
+import { fmtDate, money, plural } from './lib/format'
 import { isStudioAuth, Login } from './pages/Login'
 import { Schedule } from './pages/Schedule'
 import { Bookings } from './pages/Bookings'
@@ -388,12 +388,13 @@ export function UserMenu({ role }: { role?: Role }) {
   const { account, logout, resetDemo, mode, resetPassword } = usePlatform()
   const portal = usePortal()
   const [resetSent, setResetSent] = useState(false)
+  const [open, setOpen] = useState(false)
   // Student portal inside a studio: the profile menu also holds "Your account" and "Settings".
   const inStudio = window.location.hash.startsWith('#/s/')
   const studentAccount = portal === 'student' && role !== 'owner'
   if (!account) return <a className="btn primary" href={`#/login?next=${encodeURIComponent(window.location.hash.slice(1) || '/studios')}`}>Sign in</a>
   return (
-    <details className="dropdown">
+    <details className="dropdown" onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
       <summary className="user-chip" aria-label="Account">
         <span className="avatar">{initials(account.name)}</span>
         <span className="hide-sm">
@@ -405,6 +406,7 @@ export function UserMenu({ role }: { role?: Role }) {
       <div className="dropdown-menu card">
         <p className="dropdown-title">{account.email}</p>
         <a className="menu-item" href="#/profile" onClick={(e) => closeDropdown(e.currentTarget)}><UserRound size={16} /> Edit profile</a>
+        {studentAccount && open && <MyCredits />}
         {studentAccount && inStudio && (
           <>
             <p className="dropdown-title menu-group">Your account</p>
@@ -444,6 +446,45 @@ export function UserMenu({ role }: { role?: Role }) {
         <button className="menu-item" onClick={logout}><LogOut size={16} /> {studentAccount ? 'Log out' : 'Sign out'}</button>
       </div>
     </details>
+  )
+}
+
+/** Classes left at each studio the person books with, loaded when the profile menu opens. */
+function MyCredits() {
+  const { myCredits } = usePlatform()
+  const [list, setList] = useState<CreditSummary[] | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    myCredits().then((l) => !cancelled && setList(l)).catch(() => !cancelled && setFailed(true))
+    return () => {
+      cancelled = true
+    }
+  }, [myCredits])
+  return (
+    <>
+      <p className="dropdown-title menu-group">My credits</p>
+      {failed ? (
+        <p className="muted small credit-empty">Couldn't load your credits. Try again in a moment.</p>
+      ) : !list ? (
+        <p className="muted small credit-empty">Loading…</p>
+      ) : list.length === 0 ? (
+        <p className="muted small credit-empty">No classes left at any studio.</p>
+      ) : (
+        list.map((c) => (
+          <a key={c.slug} className="menu-item credit-item" href={`#/s/${c.slug}/credits`} onClick={(e) => closeDropdown(e.currentTarget)}>
+            <span className="studio-mark">{initials(c.name)}</span>
+            <span className="credit-text">
+              <strong>{c.name}</strong>
+              <span className="muted tiny">
+                {c.packages.length === 1 ? c.packages[0].name : `${c.packages.length} packages`} · next expiry {fmtDate(c.packages[0].expiresAt)}
+              </span>
+            </span>
+            <span className="credit-count"><Ticket size={14} /> {c.classes}</span>
+          </a>
+        ))
+      )}
+    </>
   )
 }
 

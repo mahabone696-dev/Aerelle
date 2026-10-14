@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BookingError, newId, type State, type User } from './model'
-import { createStudio, joinStudio, matchesSearch, slugify, syncAccounts, type Account, type NewStudioInput, type Platform, type StudioHit } from './platform'
+import { createStudio, joinStudio, matchesSearch, slugify, syncAccounts, type Account, type NewStudioInput, type Platform, type StudioHit, type CreditSummary, summarizeCredits } from './platform'
 import { seedPlatform } from './seed'
 
 // Local-only persistence. Swap load/save for API calls to put this behind a real backend;
@@ -60,6 +60,8 @@ export interface PlatformStore {
   createStudio: (input: NewStudioInput) => Promise<{ slug?: string; error?: string }>
   joinStudio: (studioId: string) => void
   /** Saves the signed-in person's name, phone and birthday, here and at every studio they belong to. */
+  /** Classes left per studio, across every studio this person belongs to (studios with credits only). */
+  myCredits: () => Promise<CreditSummary[]>
   saveProfile: (input: { name: string; phone: string; birthday: string }) => Promise<string | null>
   /** Studios whose name has a word starting with each word typed (at least 3 letters). Never a full list. */
   searchStudios: (query: string) => Promise<StudioHit[]>
@@ -178,6 +180,13 @@ export function LocalPlatformProvider({ children }: { children: ReactNode }) {
         }
       },
       joinStudio: (studioId) => accountId && setPlatform((p) => joinStudio(p, studioId, accountId)),
+      myCredits: async () => {
+        if (!accountId) return []
+        return platform.studios
+          .filter((s) => s.users.some((u) => u.id === accountId))
+          .map((s) => summarizeCredits({ slug: s.studio.slug, name: s.studio.name, location: s.studio.location }, s.memberPackages.filter((p) => p.userId === accountId)))
+          .filter((c) => c.classes > 0)
+      },
       saveProfile: async ({ name, phone, birthday }) => {
         if (!accountId) return 'Sign in first.'
         if (!name.trim()) return 'Enter your name.'

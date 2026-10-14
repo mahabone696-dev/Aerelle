@@ -2,7 +2,7 @@
 // orders and reviews) and all booking rules in model.ts run inside one studio. What's shared across
 // studios is the login: an Account can be a member of some studios and the owner of others.
 
-import { BookingError, newId, type ClassType, type PackageOption, type State, type User } from './model'
+import { BookingError, isActivePackage, newId, type ClassType, type MemberPackage, type PackageOption, type State, type User } from './model'
 
 export interface Account {
   id: string
@@ -54,6 +54,14 @@ export function matchesSearch(name: string, query: string) {
 }
 
 export interface StudioHit { slug: string; name: string; location: string }
+
+/** Classes left at one studio, from the person's active packages there. */
+export interface CreditSummary extends StudioHit { classes: number; packages: { name: string; remaining: number; expiresAt: string }[] }
+
+export function summarizeCredits(studio: StudioHit, packages: MemberPackage[], now = new Date()): CreditSummary {
+  const active = packages.filter((p) => isActivePackage(p, now)).sort((a, b) => a.expiresAt.localeCompare(b.expiresAt))
+  return { ...studio, classes: active.reduce((n, p) => n + p.remaining, 0), packages: active.map((p) => ({ name: p.name, remaining: p.remaining, expiresAt: p.expiresAt })) }
+}
 
 export const studioBySlug = (p: Platform, slug: string) => p.studios.find((s) => s.studio.slug === slug)
 

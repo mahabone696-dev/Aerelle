@@ -1407,5 +1407,10 @@ body { background: #f7fbfe; }
 @media (max-width: 720px) {
   .member-header .switcher { flex: 1 1 0; }   /* the studio name shrinks (with …) instead of pushing the counter and avatar to a new line */
   .member-header .member-header-inner { flex-wrap: wrap; }
-  .member-header .header-actions { margin-left: 0; }
+  .member-header .header-actions { margin-left: auto; }
 }
+.credit-item { gap: 0.6rem; }
+.credit-text { display: grid; flex: 1; min-width: 0; }
+.credit-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.credit-count { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 800; color: var(--navy); background: var(--grad-soft); border-radius: 999px; padding: 0.15rem 0.55rem; font-size: 0.85rem; flex: none; }
+.credit-empty { padding: 0.2rem 0.75rem 0.4rem; margin: 0; }

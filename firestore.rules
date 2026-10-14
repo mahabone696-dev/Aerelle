@@ -157,6 +157,10 @@ service cloud.firestore {
 
     // Searches across studios: a person can find only their own memberships (and placeholders to claim by
     // verified email). Timetables and ratings can't be searched across studios.
+    // A person's own packages across all their studios (for "classes left" on Find a studio).
+    match /{path=**}/packages/{id} {
+      allow read: if signedIn() && resource.data.userId == uid();
+    }
     match /{path=**}/members/{memberId} {
       allow read: if (signedIn() && resource.data.id == uid()) || (verifiedEmail() != null && resource.data.email == verifiedEmail());
     }

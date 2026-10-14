@@ -53,6 +53,12 @@ describe('public data', () => {
       await assertFails(getDocs(query(collectionGroup(db, 'ratings'))))
     }
   })
+  it('a person can list only their own packages across studios', async () => {
+    await assertSucceeds(getDocs(query(collectionGroup(as('alice'), 'packages'), where('userId', '==', 'alice'))))
+    await assertFails(getDocs(query(collectionGroup(as('alice'), 'packages'), where('userId', '==', 'bob'))))
+    await assertFails(getDocs(query(collectionGroup(as('alice'), 'packages'))))
+    await assertFails(getDocs(query(collectionGroup(anon(), 'packages'), where('userId', '==', 'alice'))))
+  })
   it('name search: anyone can look up one search key; only owners write their own entries; keys cannot be listed', async () => {
     await assertSucceeds(setDoc(doc(as('ownerA'), `searchIndex/ali/studios/${A}`), { sid: A, slug: 'a', name: 'A studio', location: 'X' }))
     await assertSucceeds(getDocs(collection(anon(), 'searchIndex/ali/studios')))
