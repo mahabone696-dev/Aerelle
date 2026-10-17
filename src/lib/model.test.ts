@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  addSession, book, canRate, claimWaitlistSpot, cancel, classesLeft, markAttendance, markOrderPaid, packageFor, purchase, quote, rate,
+  addSession, book, canRate, claimWaitlistSpot, cancel, classesLeft, markAttendance, markOrderPaid, packageFor, paymentReference, purchase, quote, rate,
   removeSession, savePromo, spotsLeft, type PackageOption, type Session, type State,
 } from './model'
 import { bookingReport, cancellationReport, payrollReport, salesReport } from './reports'
@@ -162,6 +162,16 @@ describe('selling packages', () => {
     expect(order.paid).toBe(false)
     s = markOrderPaid(s, order.id, 'Card')
     expect(s.orders.at(-1)).toMatchObject({ paid: true, method: 'Card' })
+  })
+
+  it('DuitNow: the package is usable at once, the order keeps its reference until the studio confirms it', () => {
+    const ref = paymentReference('Aligné Pilates Studio')
+    expect(ref).toMatch(/^APS-\d{4}$/)
+    let s = purchase(world(), 'u1', 'ref', { paid: false, method: 'DuitNow', reference: ref }, NOW)
+    expect(s.orders.at(-1)).toMatchObject({ paid: false, method: 'DuitNow', reference: ref, source: 'Online' })
+    expect(packageFor(s, 'u1', s.sessions.find((x) => x.id === 'ref')!, NOW)).toBeTruthy()
+    s = markOrderPaid(s, s.orders.at(-1)!.id, 'DuitNow')
+    expect(s.orders.at(-1)).toMatchObject({ paid: true, method: 'DuitNow', reference: ref })
   })
 
   it('validates promo codes on creation', () => {

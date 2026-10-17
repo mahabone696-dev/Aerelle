@@ -6,7 +6,7 @@ import { navigate, type Route } from '../lib/router'
 import { UserPlus } from 'lucide-react'
 import { initials } from '../ui'
 
-const METHODS: PaymentMethod[] = ['Cash', 'Card', 'Online banking', 'Bank transfer', 'Complimentary', 'Pay at studio']
+const METHODS: PaymentMethod[] = ['Cash', 'Card', 'Online banking', 'Bank transfer', 'Complimentary', 'Pay at studio', 'DuitNow']
 type Tab = 'all' | 'birthdays' | 'unpaid'
 
 export function Members({ route }: { route: Route }) {
@@ -197,13 +197,15 @@ function MemberDetail({ user, onClose }: { user: User; onClose: () => void }) {
       <ul className="plain">
         {orders.map((o) => (
           <li key={o.id}>
-            {fmtDate(o.createdAt)} · {o.name} · {money(cur, o.net)} · {o.method}{' '}
+            {fmtDate(o.createdAt)} · {o.name} · {money(cur, o.net)} · {o.method}{o.reference && ` (ref ${o.reference})`}{' '}
             {o.paid ? (
               <span className="badge">Paid</span>
             ) : (
               <>
-                <span className="badge waitlisted">Unpaid</span>{' '}
-                <button className="link" onClick={() => apply((s) => markOrderPaid(s, o.id, method))}>Mark paid ({method})</button>
+                <span className="badge waitlisted">{o.method === 'DuitNow' ? 'Awaiting confirmation' : 'Unpaid'}</span>{' '}
+                <button className="link" onClick={() => apply((s) => markOrderPaid(s, o.id, o.method === 'DuitNow' ? 'DuitNow' : method))}>
+                  {o.method === 'DuitNow' ? 'Confirm DuitNow received' : `Mark paid (${method})`}
+                </button>
               </>
             )}
           </li>

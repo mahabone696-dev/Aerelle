@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { useStore } from '../lib/store'
+import { useEffect, useState, type FormEvent } from 'react'
+import { usePlatform, useStore } from '../lib/store'
 import { BookingError, groupsOf, newId, type Staff, type Studio } from '../lib/model'
 
 export function Settings() {
@@ -9,6 +9,7 @@ export function Settings() {
         <h1>Settings</h1>
       </header>
       <StudioForm />
+      <DuitNowSettings />
       <ClassTypes />
       <StaffList />
     </section>
@@ -26,7 +27,9 @@ function StudioForm() {
       apply((s) => {
         if (!form.name.trim()) throw new BookingError('Studio name is required.')
         if (form.cancelHours < 0 || form.cancelHours > 168) throw new BookingError('Cancellation window must be 0–168 hours.')
-        return { ...s, studio: { ...form, name: form.name.trim() } }
+        // DuitNow settings are saved by their own section, so keep whatever is current for them.
+        const { duitnowEnabled: _on, duitnowName: _name, ...details } = form
+        return { ...s, studio: { ...s.studio, ...details, name: form.name.trim() } }
       }) ?? 'Saved.',
     )
   }
@@ -69,6 +72,143 @@ function StudioForm() {
         <div className="full actions">
           <button className="btn primary">Save</button>
           {saved && <span className={saved === 'Saved.' ? 'muted small' : 'error small'}>{saved}</span>}
+        </div>
+      </form>
+    </>
+  )
+}
+
+/** Shrinks an uploaded QR picture to at most 800px and returns it as a data URL small enough to store. */
+export function compressQr(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, 800 / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('Could not read that image.'))
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      // PNG keeps a plain QR crisp; a busy screenshot is smaller as JPEG.
+      let out = canvas.toDataURL('image/png')
+      for (const q of [0.92, 0.85, 0.75]) if (out.length > 600_000) out = canvas.toDataURL('image/jpeg', q)
+      if (out.length > 690_000) return reject(new Error('That image is too large. Crop it to just the QR code and try again.'))
+      resolve(out)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('That file is not an image.'))
+    }
+    img.src = url
+  })
+}
+
+/**
+ * DuitNow QR payments. The studio uploads the QR its bank gave it; members pay to it at checkout and the
+ * studio confirms each payment once it shows in its bank account. Aerelle never handles the money.
+ */
+function DuitNowSettings() {
+  const { state, apply } = useStore()
+  const { loadPaymentQr, savePaymentQr } = usePlatform()
+  const sid = state.studio.id
+  const [qr, setQr] = useState<string | null | undefined>(undefined)
+  const [enabled, setEnabled] = useState(!!state.studio.duitnowEnabled)
+  const [name, setName] = useState(state.studio.duitnowName ?? '')
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    loadPaymentQr(sid).then((q) => live && setQr(q))
+    return () => { live = false }
+  }, [sid, loadPaymentQr])
+
+  async function upload(file: File | undefined) {
+    if (!file) return
+    setBusy(true)
+    setMsg(null)
+    try {
+      const data = await compressQr(file)
+      const err = await savePaymentQr(sid, data)
+      if (err) setMsg({ ok: false, text: err })
+      else {
+        setQr(data)
+        setMsg({ ok: true, text: 'QR code saved.' })
+      }
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message })
+    }
+    setBusy(false)
+  }
+
+  async function remove() {
+    setBusy(true)
+    const err = await savePaymentQr(sid, null)
+    setBusy(false)
+    if (err) return setMsg({ ok: false, text: err })
+    setQr(null)
+    if (enabled) save(false)
+    setMsg({ ok: true, text: 'QR code removed. DuitNow is off until you upload a new one.' })
+  }
+
+  function save(on = enabled, e?: FormEvent) {
+    e?.preventDefault()
+    if (on && !qr) return setMsg({ ok: false, text: 'Upload your DuitNow QR first.' })
+    if (on && !name.trim()) return setMsg({ ok: false, text: 'Enter the account name members will see in their bank app.' })
+    setEnabled(on)
+    const err = apply((s) => {
+      // Written explicitly (not left out) so turning it off is saved too.
+      return { ...s, studio: { ...s.studio, duitnowEnabled: on, duitnowName: name.trim() } }
+    })
+    setMsg(err ? { ok: false, text: err } : { ok: true, text: on ? 'DuitNow is on. Members can pay by QR at checkout.' : 'Saved. DuitNow is off.' })
+  }
+
+  return (
+    <>
+      <h2>DuitNow QR payments</h2>
+      <p className="muted small">
+        Let members pay for packages with any Malaysian banking or e-wallet app. Money goes straight to your bank account;
+        Aerelle never holds it and charges nothing for it. You confirm each payment on the Overview page once it arrives.
+      </p>
+      <form className="card form-grid duitnow-settings" onSubmit={(e) => save(enabled, e)}>
+        <div className="duitnow-qr-box">
+          {qr === undefined ? (
+            <span className="muted small">Loading…</span>
+          ) : qr ? (
+            <img src={qr} alt="Your DuitNow QR code" className="duitnow-qr" />
+          ) : (
+            <span className="muted small">No QR code yet</span>
+          )}
+        </div>
+        <div className="duitnow-fields">
+          <p className="muted tiny">
+            Use the static DuitNow QR from your bank's business or merchant app (Maybank, CIMB, Public Bank, RHB, etc.).
+            A screenshot is fine.
+          </p>
+          <div className="actions">
+            <label className={`btn ${busy ? 'disabled' : ''}`}>
+              {qr ? 'Replace QR' : 'Upload QR'}
+              <input type="file" accept="image/*" hidden disabled={busy} onChange={(e) => { upload(e.target.files?.[0]); e.target.value = '' }} />
+            </label>
+            {qr && <button type="button" className="btn ghost" onClick={remove} disabled={busy}>Remove</button>}
+          </div>
+          <label>
+            Account name shown in bank apps
+            <input value={name} onChange={(e) => { setName(e.target.value); setMsg(null) }} placeholder={`e.g. ${state.studio.name.toUpperCase()} SDN BHD`} />
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={enabled} onChange={(e) => { setEnabled(e.target.checked); setMsg(null) }} />
+            Offer DuitNow at checkout
+          </label>
+          <div className="actions">
+            <button className="btn primary" disabled={busy}>Save DuitNow settings</button>
+            {msg && <span className={msg.ok ? 'muted small' : 'error small'} role="status">{msg.text}</span>}
+          </div>
         </div>
       </form>
     </>

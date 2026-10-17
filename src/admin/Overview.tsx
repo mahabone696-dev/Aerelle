@@ -3,7 +3,7 @@ import { AlertCircle, CalendarDays, CheckCircle2, Circle, Gauge, Star, Wallet } 
 import { link } from '../lib/router'
 import { initials } from '../ui'
 import { useStore } from '../lib/store'
-import { averageRating, spotsLeft } from '../lib/model'
+import { averageRating, markOrderPaid, spotsLeft } from '../lib/model'
 import { fmtDate, fmtTime, money, sameDay, startOfDay } from '../lib/format'
 import { navigate } from '../lib/router'
 import { Roster } from './Roster'
@@ -35,6 +35,7 @@ export function Overview() {
       </header>
 
       <GettingStarted />
+      <DuitNowToConfirm />
 
       <div className="stats">
         <Stat icon={CalendarDays} label="Classes today" value={String(today.length)} hint={`${today.reduce((n, s) => n + s.capacity - spotsLeft(state, s), 0)} members booked`} />
@@ -89,7 +90,7 @@ export function Overview() {
                 <p className="muted small">{o.name} · {fmtDate(o.createdAt)} · {o.source}</p>
               </div>
             </div>
-            <span className={`badge ${o.paid ? '' : 'waitlisted'}`}>{o.paid ? 'Paid' : 'Unpaid'}</span>
+            <span className={`badge ${o.paid ? '' : 'waitlisted'}`}>{o.paid ? 'Paid' : o.method === 'DuitNow' ? 'Awaiting confirmation' : 'Unpaid'}</span>
             <strong>{money(cur, o.net)}</strong>
           </li>
         ))}
@@ -110,6 +111,51 @@ export function Stat({ icon: Icon, label, value, hint, onClick }: { icon?: Compo
     <button className="card stat clickable" onClick={onClick}>{body}</button>
   ) : (
     <div className="card stat">{body}</div>
+  )
+}
+
+/** DuitNow transfers members say they've made, for the studio to check against its bank account. */
+function DuitNowToConfirm() {
+  const { state, apply } = useStore()
+  const [error, setError] = useState<string | null>(null)
+  const pending = state.orders.filter((o) => !o.paid && o.method === 'DuitNow').sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  if (!pending.length) return null
+  const cur = state.studio.currency
+  const name = (id: string) => state.users.find((u) => u.id === id)?.name ?? 'Unknown'
+  const when = (iso: string) => `${fmtDate(iso)}, ${fmtTime(new Date(iso))}`
+  return (
+    <div className="card duitnow-confirm">
+      <h2 className="flush">DuitNow payments to confirm</h2>
+      <p className="muted small">
+        Check each one has arrived in your bank account (match the amount and reference), then confirm it.
+        If it never arrives, choose Not received and it moves to Unpaid.
+      </p>
+      {error && <p className="error small">{error}</p>}
+      <ul className="rows">
+        {pending.map((o) => (
+          <li key={o.id} className="row bare">
+            <div className="who">
+              <span className="avatar">{initials(name(o.userId))}</span>
+              <div>
+                <strong>{name(o.userId)}</strong>
+                <p className="muted small">{o.name} · {when(o.createdAt)}</p>
+              </div>
+            </div>
+            <span className="small">Ref <strong>{o.reference || '–'}</strong></span>
+            <strong>{money(cur, o.net)}</strong>
+            <span className="actions">
+              <button className="btn primary sm" onClick={() => setError(apply((s) => markOrderPaid(s, o.id, 'DuitNow')))}>Confirm</button>
+              <button
+                className="btn ghost sm"
+                onClick={() => setError(apply((s) => ({ ...s, orders: s.orders.map((x) => (x.id === o.id ? { ...x, method: 'Pay at studio' as const } : x)) })))}
+              >
+                Not received
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

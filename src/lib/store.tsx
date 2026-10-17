@@ -63,6 +63,10 @@ export interface PlatformStore {
   /** Classes left per studio, across every studio this person belongs to (studios with credits only). */
   myCredits: () => Promise<CreditSummary[]>
   saveProfile: (input: { name: string; phone: string; birthday: string }) => Promise<string | null>
+  /** The studio's DuitNow QR image (a data URL), or null when it hasn't uploaded one. */
+  loadPaymentQr: (studioId: string) => Promise<string | null>
+  /** Owners: saves (or with null, removes) the studio's DuitNow QR image. */
+  savePaymentQr: (studioId: string, dataUrl: string | null) => Promise<string | null>
   /** Studios whose name has a word starting with each word typed (at least 3 letters). Never a full list. */
   searchStudios: (query: string) => Promise<StudioHit[]>
   /** Runs a model action against one studio; returns an error message instead of throwing. */
@@ -89,6 +93,7 @@ export function LocalPlatformProvider({ children }: { children: ReactNode }) {
   const [platform, setPlatform] = useState<Platform>(load)
   // Every demo studio is already in memory, so a link is "looked up" as soon as it's opened.
   const [resolvedSlug, setResolvedSlug] = useState<string | null>(null)
+  const [qrs, setQrs] = useState<Record<string, string>>({})
   const [accountId, setAccountId] = useState<string | null>(() => {
     try {
       return localStorage.getItem(SESSION_KEY)
@@ -198,6 +203,11 @@ export function LocalPlatformProvider({ children }: { children: ReactNode }) {
         }))
         return null
       },
+      loadPaymentQr: async (sid) => qrs[sid] ?? null,
+      savePaymentQr: async (sid, dataUrl) => {
+        setQrs(({ [sid]: _old, ...rest }) => (dataUrl ? { ...rest, [sid]: dataUrl } : rest))
+        return null
+      },
       searchStudios: async (q) =>
         slugify(q).replace(/-/g, '').length < 3
           ? []
@@ -214,7 +224,7 @@ export function LocalPlatformProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [platform, accountId, login, signup, resolvedSlug],
+    [platform, accountId, login, signup, resolvedSlug, qrs],
   )
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>

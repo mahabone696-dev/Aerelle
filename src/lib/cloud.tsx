@@ -4,7 +4,7 @@ import {
   signOut, updateProfile, type User as FbUser,
 } from 'firebase/auth'
 import {
-  collection, collectionGroup, doc, getDoc, getDocs, limit, onSnapshot, query, runTransaction, setDoc, where, writeBatch, type DocumentData, type Query,
+  collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, query, runTransaction, setDoc, where, writeBatch, type DocumentData, type Query,
   type Unsubscribe, type WriteBatch,
 } from 'firebase/firestore'
 import { auth, db } from './firebase'
@@ -38,7 +38,11 @@ type Coll = (typeof COLLECTIONS)[number]
 // ---------- conversions ----------
 
 const STUDIO_FIELDS = ['id', 'slug', 'name', 'location', 'currency', 'cancelHours', 'email', 'phone', 'description'] as const
-const toStudio = (d: StudioDoc): Studio => Object.fromEntries(STUDIO_FIELDS.map((k) => [k, d[k] ?? ''])) as unknown as Studio
+const toStudio = (d: StudioDoc): Studio => ({
+  ...(Object.fromEntries(STUDIO_FIELDS.map((k) => [k, d[k] ?? ''])) as unknown as Studio),
+  ...(d.duitnowEnabled ? { duitnowEnabled: true } : {}),
+  ...(d.duitnowName ? { duitnowName: d.duitnowName } : {}),
+})
 const strip = <T,>(data: DocumentData, drop: string[] = []): T => {
   const out = { ...data }
   for (const k of ['studioId', ...drop]) delete out[k]
@@ -570,6 +574,23 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
           for (const sid of Object.keys(mine ?? {})) batch.update(doc(db, `studios/${sid}/members/${uid}`), patch)
           await batch.commit()
           await updateProfile(auth.currentUser, { displayName: patch.name }).catch(() => {})
+          return null
+        } catch (e) {
+          return friendly(e)
+        }
+      },
+      loadPaymentQr: async (sid) => {
+        try {
+          return ((await getDoc(doc(db, `studios/${sid}/payment/duitnow`))).data()?.qr as string | undefined) ?? null
+        } catch {
+          return null
+        }
+      },
+      savePaymentQr: async (sid, dataUrl) => {
+        try {
+          const ref = doc(db, `studios/${sid}/payment/duitnow`)
+          if (dataUrl) await setDoc(ref, { qr: dataUrl, updatedAt: new Date().toISOString() })
+          else await deleteDoc(ref)
           return null
         } catch (e) {
           return friendly(e)

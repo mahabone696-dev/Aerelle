@@ -154,6 +154,25 @@ describe('members', () => {
     await assertFails(updateDoc(doc(db, `studios/${A}/orders/o2`), { paid: true }))
     await assertSucceeds(updateDoc(doc(as('ownerA'), `studios/${A}/orders/o2`), { paid: true }))
   })
+  it('anyone can see a studio’s DuitNow QR; only its owners can set it, as a small image', async () => {
+    const qr = { qr: 'data:image/png;base64,iVBORw0KGgo=', updatedAt: '2026-10-17T00:00:00Z' }
+    await assertSucceeds(setDoc(doc(as('ownerA'), `studios/${A}/payment/duitnow`), qr))
+    await assertSucceeds(getDoc(doc(anon(), `studios/${A}/payment/duitnow`)))
+    await assertFails(setDoc(doc(as('alice'), `studios/${A}/payment/duitnow`), qr))
+    await assertFails(setDoc(doc(as('ownerB'), `studios/${A}/payment/duitnow`), qr))
+    await assertFails(setDoc(doc(as('ownerA'), `studios/${A}/payment/other`), qr))
+    await assertFails(setDoc(doc(as('ownerA'), `studios/${A}/payment/duitnow`), { ...qr, extra: 1 }))
+    await assertFails(setDoc(doc(as('ownerA'), `studios/${A}/payment/duitnow`), { ...qr, qr: 'javascript:alert(1)' }))
+    await assertFails(setDoc(doc(as('ownerA'), `studios/${A}/payment/duitnow`), { ...qr, qr: 'data:image/png;base64,' + 'A'.repeat(700_000) }))
+    await assertFails(deleteDoc(doc(as('alice'), `studios/${A}/payment/duitnow`)))
+    await assertSucceeds(deleteDoc(doc(as('ownerA'), `studios/${A}/payment/duitnow`)))
+  })
+  it('a DuitNow order stays unpaid until the studio confirms it', async () => {
+    const db = as('alice')
+    await assertSucceeds(setDoc(doc(db, `studios/${A}/orders/o4`), { id: 'o4', userId: 'alice', paid: false, source: 'Online', method: 'DuitNow', reference: 'AP-1234', net: 50 }))
+    await assertFails(updateDoc(doc(db, `studios/${A}/orders/o4`), { paid: true }))
+    await assertSucceeds(updateDoc(doc(as('ownerA'), `studios/${A}/orders/o4`), { paid: true }))
+  })
   it('can count one promo use, nothing else', async () => {
     await assertSucceeds(updateDoc(doc(as('alice'), `studios/${A}/promos/pr`), { uses: 1 }))
     await assertFails(updateDoc(doc(as('alice'), `studios/${A}/promos/pr`), { uses: 0 }))

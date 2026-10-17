@@ -2,7 +2,7 @@
 // or throws a BookingError with a message that can be shown to the user.
 
 export type Role = 'member' | 'owner'
-export type PaymentMethod = 'Card' | 'Online banking' | 'Cash' | 'Bank transfer' | 'Complimentary' | 'Pay at studio'
+export type PaymentMethod = 'Card' | 'Online banking' | 'Cash' | 'Bank transfer' | 'Complimentary' | 'Pay at studio' | 'DuitNow'
 export type OrderSource = 'Online' | 'Front desk'
 export type BookingStatus = 'booked' | 'waitlisted' | 'cancelled' | 'late-cancelled'
 export type Attendance = 'attended' | 'no-show'
@@ -19,6 +19,10 @@ export interface Studio {
   email: string
   phone: string
   description: string
+  /** Members can pay by scanning the studio's DuitNow QR; the studio confirms each payment. */
+  duitnowEnabled?: boolean
+  /** Account name shown next to the QR, so members can check they're paying the right account. */
+  duitnowName?: string
 }
 
 /** A class type belongs to a group; packages unlock groups (e.g. a Reformer pack can't book Mat classes). */
@@ -99,6 +103,8 @@ export interface Order {
   source: OrderSource
   paid: boolean
   createdAt: string
+  /** Code the member put on their DuitNow transfer so the studio can match it in its bank app. */
+  reference?: string
 }
 
 export interface Booking {
@@ -380,6 +386,14 @@ export interface PurchaseInput {
   method?: PaymentMethod
   source?: OrderSource
   paid?: boolean
+  /** Code the member puts in their transfer note, so the studio can match the payment. */
+  reference?: string
+}
+
+/** A short code for a DuitNow transfer note, e.g. "AP-4821" (studio initials + 4 digits). */
+export function paymentReference(studioName: string) {
+  const letters = studioName.normalize('NFD').replace(/[^A-Za-z ]/g, '').split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 3).toUpperCase() || 'PAY'
+  return `${letters}-${String(Math.floor(1000 + Math.random() * 9000))}`
 }
 
 /** Sells a package. Members buy online; staff can also assign hidden packages and record unpaid ones. */
@@ -403,6 +417,7 @@ export function purchase(state: State, userId: string, optionId: string, input: 
     source,
     paid: input.paid ?? true,
     createdAt: now.toISOString(),
+    ...(input.reference ? { reference: input.reference } : {}),
   }
   const pkg: MemberPackage = {
     id: newId(),

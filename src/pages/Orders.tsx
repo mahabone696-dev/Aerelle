@@ -8,7 +8,8 @@ export function Orders() {
   if (!user) return null
   const cur = state.studio.currency
   const mine = state.orders.filter((o) => o.userId === user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  const unpaid = mine.filter((o) => !o.paid)
+  const unpaid = mine.filter((o) => !o.paid && o.method !== 'DuitNow')
+  const awaiting = mine.filter((o) => !o.paid && o.method === 'DuitNow')
   return (
     <section>
       <header className="page-head">
@@ -18,6 +19,11 @@ export function Orders() {
       {unpaid.length > 0 && (
         <p className="error banner">
           {money(cur, unpaid.reduce((n, o) => n + o.net, 0))} unpaid. Please settle it at the front desk.
+        </p>
+      )}
+      {awaiting.length > 0 && (
+        <p className="info banner">
+          {money(cur, awaiting.reduce((n, o) => n + o.net, 0))} paid by DuitNow, waiting for {state.studio.name} to confirm it arrived.
         </p>
       )}
       {mine.length === 0 ? (
@@ -30,10 +36,11 @@ export function Orders() {
                 <strong>{o.name}</strong>
                 <p className="muted small">
                   {fmtDate(o.createdAt)} · {o.method}
+                  {o.reference && ` · ref ${o.reference}`}
                   {o.promo && ` · ${o.promo}`}
                 </p>
               </div>
-              <span className={`badge ${o.paid ? 'booked' : 'waitlisted'}`}>{o.paid ? 'Paid' : 'Unpaid'}</span>
+              <span className={`badge ${o.paid ? 'booked' : 'waitlisted'}`}>{o.paid ? 'Paid' : o.method === 'DuitNow' ? 'Awaiting confirmation' : 'Unpaid'}</span>
               <strong className="order-amount">{money(cur, o.net)}</strong>
             </li>
           ))}
