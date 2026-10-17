@@ -1474,3 +1474,10 @@ body { background: #f7fbfe; }
   .duitnow-confirm .actions { grid-column: 1 / -1; }
   .duitnow-confirm .actions .btn { flex: 1; }
 }
+
+/* Credits per class type (Settings) */
+.type-chip { gap: 0.4rem; }
+.credit-select {
+  font: inherit; font-size: 0.8rem; padding: 0.1rem 0.35rem; border-radius: 999px; width: auto; min-height: 0;
+  border: 1px solid rgb(59 143 240 / 0.3); background: #fff; color: var(--navy);
+}

@@ -14,7 +14,7 @@ export interface Studio {
   name: string
   location: string
   currency: string
-  /** Cancelling at least this many hours before the start returns the class to the member's package. */
+  /** Cancelling at least this many hours before the start returns the credits to the member's package. */
   cancelHours: number
   email: string
   phone: string
@@ -30,6 +30,8 @@ export interface ClassType {
   id: string
   name: string
   group: string
+  /** Credits a booking uses; new and upcoming classes of this type take it. Missing means 1. */
+  credits?: number
 }
 
 export interface Staff {
@@ -60,7 +62,7 @@ export interface Session {
   start: string // ISO timestamp
   durationMin: number
   capacity: number
-  cost: number // classes deducted from a package
+  cost: number // credits deducted from a package
   seriesId?: string
 }
 
@@ -114,6 +116,8 @@ export interface Booking {
   status: BookingStatus
   createdAt: string
   packageId?: string
+  /** Credits taken from the package for this spot, so a cancellation returns exactly that many. */
+  credits?: number
   attendance?: Attendance
   cancelledAt?: string
 }
@@ -203,6 +207,19 @@ export function packageFor(state: State, userId: string, session: Session, now =
     .sort((a, b) => a.expiresAt.localeCompare(b.expiresAt))[0]
 }
 
+export const credits = (n: number) => `${n} ${n === 1 ? 'credit' : 'credits'}`
+
+/** Why no package can pay for this class: none covers it, or the ones that do have too few credits left. */
+export function noPackageMessage(state: State, userId: string, session: Session, now = new Date(), buyHint = false) {
+  const start = new Date(session.start)
+  const covering = state.memberPackages.filter(
+    (p) => p.userId === userId && p.remaining > 0 && new Date(p.expiresAt) > start && new Date(p.purchasedAt) <= now && p.groups.includes(session.group),
+  )
+  if (!covering.length) return `You need a package that covers ${session.group} classes on this date.${buyHint ? ' Buy one first.' : ''}`
+  const most = Math.max(...covering.map((p) => p.remaining))
+  return `This class uses ${credits(session.cost)} and your ${session.group} package has only ${credits(most)} left.${buyHint ? ' Get another package to book it.' : ''}`
+}
+
 const getUser = (state: State, userId: string) => {
   const user = state.users.find((u) => u.id === userId)
   if (!user) throw new BookingError('Account not found.')
@@ -215,12 +232,15 @@ const getSession = (state: State, sessionId: string) => {
   return session
 }
 
+/** Credits a confirmed spot took (bookings made before credits were recorded used the class's cost). */
+const spent = (b: Booking, session: Session) => b.credits ?? session.cost
+
 const adjustPackage = (pkgs: MemberPackage[], id: string | undefined, delta: number) =>
   pkgs.map((p) => (p.id === id ? { ...p, remaining: p.remaining + delta } : p))
 
 // ---------- Booking ----------
 
-/** Books a spot, or joins the waitlist when the class is full. A class is deducted only for a confirmed spot. */
+/** Books a spot, or joins the waitlist when the class is full. Credits are deducted only for a confirmed spot. */
 export function book(state: State, userId: string, sessionId: string, now = new Date()): State {
   getUser(state, userId)
   const session = getSession(state, sessionId)
@@ -229,9 +249,7 @@ export function book(state: State, userId: string, sessionId: string, now = new 
 
   const full = spotsLeft(state, session) === 0
   const pkg = packageFor(state, userId, session, now)
-  if (!pkg) {
-    throw new BookingError(`You need a package that covers ${session.group} classes on this date. Buy one first.`)
-  }
+  if (!pkg) throw new BookingError(noPackageMessage(state, userId, session, now, true))
 
   const booking: Booking = {
     id: newId(),
@@ -240,6 +258,7 @@ export function book(state: State, userId: string, sessionId: string, now = new 
     status: full ? 'waitlisted' : 'booked',
     createdAt: now.toISOString(),
     packageId: full ? undefined : pkg.id,
+    credits: full ? undefined : session.cost,
   }
   return {
     ...state,
@@ -271,7 +290,7 @@ export function cancel(state: State, userId: string, sessionId: string, now = ne
   const next: State = {
     ...state,
     memberPackages: refunded
-      ? adjustPackage(state.memberPackages, booking.packageId, session.cost)
+      ? adjustPackage(state.memberPackages, booking.packageId, spent(booking, session))
       : state.memberPackages,
     bookings: state.bookings.map((b) =>
       b.id === booking.id
@@ -293,7 +312,7 @@ function promoteWaitlist(state: State, session: Session, now: Date): State {
     state = {
       ...state,
       memberPackages: adjustPackage(state.memberPackages, pkg.id, -session.cost),
-      bookings: state.bookings.map((b) => (b.id === entry.id ? { ...b, status: 'booked', packageId: pkg.id } : b)),
+      bookings: state.bookings.map((b) => (b.id === entry.id ? { ...b, status: 'booked', packageId: pkg.id, credits: session.cost } : b)),
     }
   }
   return state
@@ -311,11 +330,11 @@ export function claimWaitlistSpot(state: State, userId: string, sessionId: strin
   if (waitlist(state, sessionId)[0]?.id !== entry.id) throw new BookingError('Someone is ahead of you on the waitlist.')
   if (spotsLeft(state, session) === 0) throw new BookingError('The class is still full.')
   const pkg = packageFor(state, userId, session, now)
-  if (!pkg) throw new BookingError(`You need a package that covers ${session.group} classes on this date.`)
+  if (!pkg) throw new BookingError(noPackageMessage(state, userId, session, now))
   return {
     ...state,
     memberPackages: adjustPackage(state.memberPackages, pkg.id, -session.cost),
-    bookings: state.bookings.map((b) => (b.id === entry.id ? { ...b, status: 'booked', packageId: pkg.id } : b)),
+    bookings: state.bookings.map((b) => (b.id === entry.id ? { ...b, status: 'booked', packageId: pkg.id, credits: session.cost } : b)),
   }
 }
 
@@ -446,7 +465,7 @@ export const markOrderPaid = (state: State, orderId: string, method: PaymentMeth
 
 export function savePackageOption(state: State, option: PackageOption): State {
   if (!option.name.trim()) throw new BookingError('Give the package a name.')
-  if (option.classes < 1) throw new BookingError('A package needs at least 1 class.')
+  if (option.classes < 1) throw new BookingError('A package needs at least 1 credit.')
   if (option.validDays < 1) throw new BookingError('Validity must be at least 1 day.')
   if (option.price < 0) throw new BookingError('Price cannot be negative.')
   if (!option.groups.length) throw new BookingError('Pick at least one class group.')
@@ -498,7 +517,7 @@ export function addSession(state: State, draft: SessionDraft, repeatWeeks = 1): 
   if (Number.isNaN(new Date(draft.start).getTime())) throw new BookingError('Pick a valid start time.')
   if (draft.capacity < 1) throw new BookingError('Capacity must be at least 1.')
   if (draft.durationMin < 5) throw new BookingError('Duration must be at least 5 minutes.')
-  if (draft.cost < 0) throw new BookingError('Cost cannot be negative.')
+  if (draft.cost < 0) throw new BookingError('Credits cannot be negative.')
   if (repeatWeeks < 1 || repeatWeeks > 52) throw new BookingError('Repeat between 1 and 52 weeks.')
   const seriesId = repeatWeeks > 1 ? newId() : undefined
   const added: Session[] = []
@@ -510,11 +529,33 @@ export function addSession(state: State, draft: SessionDraft, repeatWeeks = 1): 
   return { ...state, sessions: [...state.sessions, ...added] }
 }
 
-/** Removes a class and returns the class to everyone holding a confirmed spot. */
+/**
+ * Sets how many credits a class type uses, for upcoming classes of that type too. Existing bookings keep
+ * what they paid, so a cancellation returns the right number.
+ */
+export function setClassTypeCredits(state: State, typeId: string, credits: number, now = new Date()): State {
+  const type = state.classTypes.find((c) => c.id === typeId)
+  if (!type) throw new BookingError('Class type not found.')
+  if (!Number.isInteger(credits) || credits < 0 || credits > 50) throw new BookingError('Credits must be a whole number from 0 to 50.')
+  const changing = new Map(
+    state.sessions.filter((s) => s.title === type.name && new Date(s.start) > now && s.cost !== credits).map((s) => [s.id, s]),
+  )
+  return {
+    ...state,
+    classTypes: state.classTypes.map((c) => (c.id === typeId ? { ...c, credits } : c)),
+    sessions: state.sessions.map((s) => (changing.has(s.id) ? { ...s, cost: credits } : s)),
+    bookings: state.bookings.map((b) => {
+      const s = changing.get(b.sessionId)
+      return s && b.status === 'booked' && b.credits === undefined ? { ...b, credits: s.cost } : b
+    }),
+  }
+}
+
+/** Removes a class and returns the credits to everyone holding a confirmed spot. */
 export function removeSession(state: State, sessionId: string, now = new Date()): State {
   const session = getSession(state, sessionId)
   let memberPackages = state.memberPackages
-  for (const b of activeBookings(state, sessionId)) memberPackages = adjustPackage(memberPackages, b.packageId, session.cost)
+  for (const b of activeBookings(state, sessionId)) memberPackages = adjustPackage(memberPackages, b.packageId, spent(b, session))
   return {
     ...state,
     memberPackages,

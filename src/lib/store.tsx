@@ -60,7 +60,7 @@ export interface PlatformStore {
   createStudio: (input: NewStudioInput) => Promise<{ slug?: string; error?: string }>
   joinStudio: (studioId: string) => void
   /** Saves the signed-in person's name, phone and birthday, here and at every studio they belong to. */
-  /** Classes left per studio, across every studio this person belongs to (studios with credits only). */
+  /** Credits left per studio, across every studio this person belongs to (studios with credits only). */
   myCredits: () => Promise<CreditSummary[]>
   saveProfile: (input: { name: string; phone: string; birthday: string }) => Promise<string | null>
   /** The studio's DuitNow QR image (a data URL), or null when it hasn't uploaded one. */

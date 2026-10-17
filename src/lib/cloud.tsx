@@ -54,6 +54,25 @@ const toSession = (d: SessionDoc): Session => strip<Session>(d, ['booked', 'wait
 const toUser = (d: DocumentData): User => ({ ...strip<User>(d, ['claimed']), passwordHash: d.claimed ? 'account' : '' })
 const memberDoc = (u: User) => ({ id: u.id, name: u.name, email: u.email.toLowerCase(), phone: u.phone, birthday: u.birthday, role: u.role, joinedAt: u.joinedAt })
 
+/**
+ * Firestore batches hold at most 500 writes. Small changes (every member action) stay one atomic batch,
+ * which the rules rely on; a big owner change, like new credits for a year of classes, is split.
+ */
+async function commitInChunks(fill: (batch: WriteBatch) => void, size = 450) {
+  const ops: ((b: WriteBatch) => void)[] = []
+  const recorder = {
+    set: (...a: unknown[]) => { ops.push((b) => (b.set as (...x: unknown[]) => void)(...a)); return recorder },
+    update: (...a: unknown[]) => { ops.push((b) => (b.update as (...x: unknown[]) => void)(...a)); return recorder },
+    delete: (...a: unknown[]) => { ops.push((b) => (b.delete as (...x: unknown[]) => void)(...a)); return recorder },
+  }
+  fill(recorder as unknown as WriteBatch)
+  for (let i = 0; i < ops.length; i += size) {
+    const batch = writeBatch(db)
+    for (const op of ops.slice(i, i + size)) op(batch)
+    await batch.commit()
+  }
+}
+
 /** Stable JSON for change detection: sorted keys, undefined dropped. */
 function canon(v: unknown): string {
   return JSON.stringify(v, (_k, val) =>
@@ -383,9 +402,7 @@ export function CloudPlatformProvider({ children }: { children: ReactNode }) {
       try {
         const prev = buildState(sid)
         const next = action(prev)
-        const batch = writeBatch(db)
-        diffInto(batch, sid, prev, next)
-        batch.commit().catch((e) => setNotice(friendly(e)))
+        commitInChunks((batch) => diffInto(batch, sid, prev, next)).catch((e) => setNotice(friendly(e)))
         return null
       } catch (e) {
         if (e instanceof BookingError) return e.message

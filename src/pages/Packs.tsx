@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, Copy, Download, QrCode, Store } from 'lucide-react'
 import { usePlatform, useStore } from '../lib/store'
-import { activePackages, hasUsedTrial, paymentReference, purchase, quote, type PackageOption, type PaymentMethod } from '../lib/model'
+import { activePackages, credits, hasUsedTrial, paymentReference, purchase, quote, type PackageOption, type PaymentMethod } from '../lib/model'
 import { fmtDate, money, plural } from '../lib/format'
 import { navigate } from '../lib/router'
 
@@ -42,7 +42,7 @@ export function Packs() {
     <section>
       <header className="page-head">
         <h1>Packages</h1>
-        <p className="muted">Each package covers certain class types and is valid for a set time after purchase.</p>
+        <p className="muted">Packages give you credits for certain class types, valid for a set time after purchase. Each class shows how many credits it uses.</p>
       </header>
       {msg && <p className={`${msg.kind} banner`} role="status">{msg.text}</p>}
       {unpaid.length > 0 && (
@@ -69,10 +69,10 @@ export function Packs() {
                 <strong>{p.name}</strong>
                 <p className="muted small">{p.groups.join(', ')} · expires {fmtDate(p.expiresAt)}</p>
               </div>
-              <div className="meter" aria-label={`${p.remaining} of ${p.total} left`}>
+              <div className="meter" aria-label={`${p.remaining} of ${p.total} credits left`}>
                 <span style={{ width: `${(p.remaining / p.total) * 100}%` }} />
               </div>
-              <strong>{p.remaining}/{p.total} left</strong>
+              <strong>{p.remaining}/{p.total} credits left</strong>
             </li>
           ))}
         </ul>
@@ -91,8 +91,8 @@ export function Packs() {
                   <h3>{p.name}</h3>
                   <p className="price">{money(cur, p.price)}{p.recurring && <span className="small muted"> /month</span>}</p>
                   <p className="muted small">
-                    {plural(p.classes, 'class', 'classes')} · valid {validity(p.validDays)}
-                    {p.classes > 1 && ` · ${money(cur, Math.round(p.price / p.classes))} per class`}
+                    {credits(p.classes)} · valid {validity(p.validDays)}
+                    {p.classes > 1 && ` · ${money(cur, Math.round(p.price / p.classes))} per credit`}
                   </p>
                   <button
                     className="btn primary block"
@@ -143,7 +143,7 @@ export function Packs() {
             {past.map((p) => (
               <li key={p.id} className="card row muted">
                 <span>{p.name}</span>
-                <span className="small">{p.remaining ? `${p.remaining} unused · expired ${fmtDate(p.expiresAt)}` : 'Fully used'}</span>
+                <span className="small">{p.remaining ? `${credits(p.remaining)} unused · expired ${fmtDate(p.expiresAt)}` : 'Fully used'}</span>
                 <span />
               </li>
             ))}

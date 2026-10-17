@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react'
 import { useStore } from '../lib/store'
-import { averageRating, book, cancel, groupsOf, packageFor, spotsLeft, userBooking, waitlist, type Session } from '../lib/model'
+import { averageRating, book, credits, cancel, groupsOf, packageFor, spotsLeft, userBooking, waitlist, type Session } from '../lib/model'
 import { dayKey, fmtDay, fmtTime, plural, sameDay, startOfDay } from '../lib/format'
 import { navigate } from '../lib/router'
 import { Stars } from '../ui'
@@ -108,7 +108,7 @@ export function Schedule() {
       <header className="page-head">
         <h1>Classes</h1>
         <p className="muted">
-          {state.studio.name} · {state.studio.location}. Cancel at least {state.studio.cancelHours} hours before class to get the class back.
+          {state.studio.name} · {state.studio.location}. Cancel at least {state.studio.cancelHours} hours before class to get your credits back.
         </p>
       </header>
 
@@ -209,7 +209,7 @@ function SessionRow({ s, now, onAct }: { s: Session; now: Date; onAct: (s: Sessi
         <span className="tag">{s.group}</span>
         <h3>{s.title}</h3>
         <p className="muted small">
-          {s.instructor} · {s.room} · {plural(s.cost, 'class', 'classes')}
+          {s.instructor} · {s.room} · {s.cost ? credits(s.cost) : 'Free'}
         </p>
         {rating && (
           <p className="small">
@@ -235,7 +235,7 @@ function SessionRow({ s, now, onAct }: { s: Session; now: Date; onAct: (s: Sessi
             <button className={`btn ${left === 0 ? '' : 'primary'}`} onClick={() => onAct(s, 'book')}>
               {left === 0 ? 'Join waitlist' : 'Book'}
             </button>
-            {user && <span className="muted tiny">{pkg ? `Uses ${pkg.name}` : `Needs a ${s.group} package`}</span>}
+            {user && <span className="muted tiny">{pkg ? `Uses ${credits(s.cost)} from ${pkg.name}` : `Needs ${credits(s.cost)} on a ${s.group} package`}</span>}
           </>
         )}
       </div>

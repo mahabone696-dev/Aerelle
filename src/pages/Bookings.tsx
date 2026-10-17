@@ -60,7 +60,7 @@ export function Bookings() {
                   className="btn ghost"
                   title={late && booking.status === 'booked' ? 'Within the cancellation window: no refund' : undefined}
                   onClick={() => {
-                    if (late && booking.status === 'booked' && !confirm('This is a late cancel, so the class will not be returned to your package. Cancel anyway?')) return
+                    if (late && booking.status === 'booked' && !confirm('This is a late cancel, so the credits will not be returned to your package. Cancel anyway?')) return
                     setError(apply((s) => cancel(s, user.id, session.id)))
                   }}
                 >

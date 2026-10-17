@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  addSession, book, canRate, claimWaitlistSpot, cancel, classesLeft, markAttendance, markOrderPaid, packageFor, paymentReference, purchase, quote, rate,
+  addSession, book, canRate, claimWaitlistSpot, cancel, classesLeft, markAttendance, markOrderPaid, noPackageMessage, setClassTypeCredits, packageFor, paymentReference, purchase, quote, rate,
   removeSession, savePromo, spotsLeft, type PackageOption, type Session, type State,
 } from './model'
 import { bookingReport, cancellationReport, payrollReport, salesReport } from './reports'
@@ -67,6 +67,35 @@ describe('booking with packages', () => {
     expect(left(s, 'u1')).toBe(2)
     expect(() => book(s, 'u0', 'future', NOW)).toThrow(/already/)
     expect(() => book(world(), 'u0', 'past', NOW)).toThrow(/started/)
+  })
+})
+
+describe('credits', () => {
+  it('a class can use more than one credit; too few credits says so', () => {
+    let s = world(5)
+    s = { ...s, sessions: s.sessions.map((x) => (x.id === 'future' ? { ...x, cost: 2 } : x)) }
+    s = book(s, 'u1', 'future', NOW)
+    expect(left(s, 'u1')).toBe(0)
+    s = { ...s, sessions: s.sessions.map((x) => (x.id === 'ref' ? { ...x, cost: 99 } : x)) }
+    expect(() => book(s, 'u0', 'ref', NOW)).toThrow('This class uses 99 credits and your Reformer package has only')
+    expect(noPackageMessage(s, 'u2', s.sessions.find((x) => x.id === 'ref')!, NOW)).toMatch(/need a package that covers Reformer/)
+    s = cancel(s, 'u1', 'future', NOW)
+    expect(left(s, 'u1')).toBe(2)
+  })
+
+  it('changing a class type’s credits updates upcoming classes; existing bookings get back what they paid', () => {
+    let s = world(5)
+    s = { ...s, classTypes: [{ id: 'mat', name: 'Mat class', group: 'Mat' }] }
+    s = book(s, 'u1', 'future', NOW) // 1 credit
+    s = setClassTypeCredits(s, 'mat', 2, NOW)
+    expect(s.sessions.find((x) => x.id === 'future')!.cost).toBe(2)
+    expect(s.sessions.find((x) => x.id === 'past')!.cost).toBe(1) // past classes unchanged
+    expect(s.classTypes[0].credits).toBe(2)
+    s = cancel(s, 'u1', 'future', NOW)
+    expect(left(s, 'u1')).toBe(2) // refunded 1, not 2
+    s = book(s, 'u2', 'future', NOW)
+    expect(left(s, 'u2')).toBe(0)
+    expect(() => setClassTypeCredits(s, 'mat', -1, NOW)).toThrow()
   })
 })
 

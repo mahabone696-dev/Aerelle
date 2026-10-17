@@ -143,6 +143,7 @@ describe('members', () => {
     await assertFails(updateDoc(doc(as('alice'), `studios/${A}/packages/p1`), { total: 100, remaining: 100 }))
     await assertFails(setDoc(doc(as('alice'), `studios/${A}/packages/free`), { id: 'free', userId: 'alice', total: 50, remaining: 50, orderId: 'nope' }))
     await assertSucceeds(updateDoc(doc(as('alice'), `studios/${A}/packages/p1`), { remaining: 8 }))
+    await assertFails(updateDoc(doc(as('alice'), `studios/${A}/bookings/b1`), { credits: 9 }))
   })
   it('buying online creates an unpaid order the studio confirms', async () => {
     const db = as('alice')

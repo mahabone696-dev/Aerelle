@@ -101,7 +101,7 @@ service cloud.firestore {
         allow read: if isOwner(sid) || (signedIn() && resource.data.userId == uid()) || claimable(sid, resource.data.userId);
         allow create: if isOwner(sid) || (signedIn() && request.resource.data.userId == uid());
         allow update: if isOwner(sid)
-          || (signedIn() && resource.data.userId == uid() && unchanged('userId') && unchanged('sessionId') && unchanged('attendance'))
+          || (signedIn() && resource.data.userId == uid() && unchanged('userId') && unchanged('sessionId') && unchanged('attendance') && unchanged('credits'))
           || isClaim(sid);
         allow delete: if isOwner(sid);
       }

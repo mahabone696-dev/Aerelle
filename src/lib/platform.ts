@@ -55,7 +55,7 @@ export function matchesSearch(name: string, query: string) {
 
 export interface StudioHit { slug: string; name: string; location: string }
 
-/** Classes left at one studio, from the person's active packages there. */
+/** Credits left at one studio, from the person's active packages there. */
 export interface CreditSummary extends StudioHit { classes: number; packages: { name: string; remaining: number; expiresAt: string }[] }
 
 export function summarizeCredits(studio: StudioHit, packages: MemberPackage[], now = new Date()): CreditSummary {

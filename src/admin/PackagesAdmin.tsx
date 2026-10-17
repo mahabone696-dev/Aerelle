@@ -40,7 +40,7 @@ export function PackagesAdmin() {
             <tr>
               <th>Package</th>
               <th className="hide-sm">Covers</th>
-              <th className="num">Classes</th>
+              <th className="num">Credits</th>
               <th className="hide-sm">Valid</th>
               <th className="num">Price</th>
               <th className="num hide-sm">Sold</th>
@@ -57,7 +57,7 @@ export function PackagesAdmin() {
                   {p.recurring && <span className="badge">Monthly</span>}
                 </td>
                 <td className="hide-sm">{p.groups.join(', ')}</td>
-                <td className="num pk-classes" data-unit={p.classes === 1 ? 'class' : 'classes'}>{p.classes}</td>
+                <td className="num pk-classes" data-unit={p.classes === 1 ? 'credit' : 'credits'}>{p.classes}</td>
                 <td className="hide-sm">{validity(p.validDays)}</td>
                 <td className="num pk-price">{money(cur, p.price)}</td>
                 <td className="num hide-sm">{sold(p.id)}</td>
@@ -102,7 +102,7 @@ function PackageForm({ option, onDone }: { option: PackageOption; onDone: () => 
     <form className="card form-grid" onSubmit={submit}>
       <label className="span2">Name<input value={form.name} onChange={(e) => set('name', e.target.value)} required /></label>
       <label>Price ({state.studio.currency})<input type="number" min={0} step="0.01" value={form.price} onChange={(e) => set('price', +e.target.value)} /></label>
-      <label>Classes<input type="number" min={1} value={form.classes} onChange={(e) => set('classes', +e.target.value)} /></label>
+      <label>Credits<input type="number" min={1} value={form.classes} onChange={(e) => set('classes', +e.target.value)} /></label>
       <label>Valid for (days)<input type="number" min={1} value={form.validDays} onChange={(e) => set('validDays', +e.target.value)} /></label>
       <fieldset className="full">
         <legend>Can be used for</legend>

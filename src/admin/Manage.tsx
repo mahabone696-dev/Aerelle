@@ -29,7 +29,7 @@ export function Manage({ route }: { route: Route }) {
   function cancelClass(s: Session) {
     const series = s.seriesId ? state.sessions.filter((x) => x.seriesId === s.seriesId && x.start >= s.start) : [s]
     const all = series.length > 1 && confirm(`Cancel this and the next ${series.length - 1} weekly ${s.title} classes too? Choose Cancel for just this one.`)
-    if (!all && !confirm(`Cancel ${s.title} on ${fmtDayLong(new Date(s.start))}? Booked members get the class back.`)) return
+    if (!all && !confirm(`Cancel ${s.title} on ${fmtDayLong(new Date(s.start))}? Booked members get their credits back.`)) return
     setError(apply((st) => (all ? series : [s]).reduce((acc, x) => removeSession(acc, x.id), st)))
   }
 
@@ -215,7 +215,7 @@ function NewClass({ onCreate, onClose }: { onCreate: (draft: SessionDraft, weeks
     start: toLocalInput(tomorrow),
     durationMin: 60,
     capacity: CAPACITY[first?.group] ?? 10,
-    cost: 1,
+    cost: first?.credits ?? 1,
   })
   const [weeks, setWeeks] = useState(1)
   const [error, setError] = useState<string | null>(null)
@@ -241,7 +241,7 @@ function NewClass({ onCreate, onClose }: { onCreate: (draft: SessionDraft, weeks
             value={form.title}
             onChange={(e) => {
               const ct = state.classTypes.find((c) => c.name === e.target.value)!
-              setForm((f) => ({ ...f, title: ct.name, group: ct.group, capacity: CAPACITY[ct.group] ?? f.capacity }))
+              setForm((f) => ({ ...f, title: ct.name, group: ct.group, capacity: CAPACITY[ct.group] ?? f.capacity, cost: ct.credits ?? 1 }))
             }}
           >
             {state.classTypes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
@@ -256,7 +256,7 @@ function NewClass({ onCreate, onClose }: { onCreate: (draft: SessionDraft, weeks
         <label>Starts<input type="datetime-local" value={form.start} onChange={(e) => set('start', e.target.value)} required /></label>
         <label>Minutes<input type="number" min={5} value={form.durationMin} onChange={(e) => set('durationMin', +e.target.value)} /></label>
         <label>Capacity<input type="number" min={1} value={form.capacity} onChange={(e) => set('capacity', +e.target.value)} /></label>
-        <label>Classes deducted<input type="number" min={0} value={form.cost} onChange={(e) => set('cost', +e.target.value)} /></label>
+        <label>Credits per booking<input type="number" min={0} value={form.cost} onChange={(e) => set('cost', +e.target.value)} /></label>
         <label>Location<input value={form.room} onChange={(e) => set('room', e.target.value)} /></label>
         <label>
           Repeat weekly

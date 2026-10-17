@@ -154,8 +154,8 @@ function MemberDetail({ user, onClose }: { user: User; onClose: () => void }) {
             <li key={p.id} className={active ? '' : 'muted'}>
               <strong>{p.name}</strong> ·{' '}
               {active
-                ? `${p.remaining}/${p.total} left · expires ${fmtDate(p.expiresAt)}`
-                : p.remaining === 0 ? 'fully used' : `${p.remaining} unused · expired ${fmtDate(p.expiresAt)}`}
+                ? `${p.remaining}/${p.total} credits left · expires ${fmtDate(p.expiresAt)}`
+                : p.remaining === 0 ? 'fully used' : `${p.remaining} credits unused · expired ${fmtDate(p.expiresAt)}`}
             </li>
           )
         })}

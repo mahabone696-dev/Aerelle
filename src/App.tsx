@@ -454,7 +454,7 @@ export function UserMenu({ role }: { role?: Role }) {
   )
 }
 
-/** Classes left at each studio the person books with, loaded when the profile menu opens. */
+/** Credits left at each studio the person books with, loaded when the profile menu opens. */
 function MyCredits() {
   const { myCredits } = usePlatform()
   const [list, setList] = useState<CreditSummary[] | null>(null)
@@ -474,7 +474,7 @@ function MyCredits() {
       ) : !list ? (
         <p className="muted small credit-empty">Loading…</p>
       ) : list.length === 0 ? (
-        <p className="muted small credit-empty">No classes left at any studio.</p>
+        <p className="muted small credit-empty">No credits left at any studio.</p>
       ) : (
         list.map((c) => (
           <a key={c.slug} className="menu-item credit-item" href={`#/s/${c.slug}/credits`} onClick={(e) => closeDropdown(e.currentTarget)}>
@@ -658,8 +658,8 @@ function MemberShell({ route }: { route: Route }) {
             })}
           </nav>
           <div className="header-actions">
-            <a className="credits" href={link('/credits')} title="Classes left across your active packages at this studio">
-              <Ticket size={15} /> {classesLeft(state, user.id)}<span className="hide-sm">&nbsp;{classesLeft(state, user.id) === 1 ? 'class' : 'classes'} left</span>
+            <a className="credits" href={link('/credits')} title="Credits left across your active packages at this studio">
+              <Ticket size={15} /> {classesLeft(state, user.id)}<span className="hide-sm">&nbsp;{classesLeft(state, user.id) === 1 ? 'credit' : 'credits'} left</span>
             </a>
             <UserMenu role="member" />
           </div>

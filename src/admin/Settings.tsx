@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { usePlatform, useStore } from '../lib/store'
-import { BookingError, groupsOf, newId, type Staff, type Studio } from '../lib/model'
+import { BookingError, credits, groupsOf, newId, setClassTypeCredits, type Staff, type Studio } from '../lib/model'
 
 export function Settings() {
   return (
@@ -68,7 +68,7 @@ function StudioForm() {
           Description
           <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} />
         </label>
-        <p className="muted tiny full">Cancelling at least this many hours before class returns the class to the member's package. Later cancellations keep it.</p>
+        <p className="muted tiny full">Cancelling at least this many hours before class returns the credits to the member's package. Later cancellations keep them.</p>
         <div className="full actions">
           <button className="btn primary">Save</button>
           {saved && <span className={saved === 'Saved.' ? 'muted small' : 'error small'}>{saved}</span>}
@@ -220,12 +220,17 @@ function ClassTypes() {
   const [name, setName] = useState('')
   const [group, setGroup] = useState(groupsOf(state)[0] ?? 'Mat')
   const [newGroup, setNewGroup] = useState('')
+  const [creditMsg, setCreditMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const groups = groupsOf(state)
   return (
     <>
       <h2>Class types</h2>
-      <p className="muted small">Each class type belongs to a group. Packages unlock groups, so a Reformer pack can't be used for a Mat class.</p>
+      <p className="muted small">
+        Each class type belongs to a group. Packages unlock groups, so a Reformer pack can't be used for a Mat class.
+        Set how many credits each type uses: changing it updates that type's upcoming classes, and people already booked keep what they paid.
+      </p>
+      {creditMsg && <p className={`${creditMsg.ok ? 'ok' : 'error'} banner`} role="status">{creditMsg.text}</p>}
       <form
         className="card form-grid"
         onSubmit={(e) => {
@@ -260,8 +265,23 @@ function ClassTypes() {
             {state.classTypes.filter((c) => c.group === g).map((c) => {
               const used = state.sessions.some((s) => s.title === c.name && new Date(s.start) > new Date())
               return (
-                <li key={c.id} className="chip static">
+                <li key={c.id} className="chip static type-chip">
                   {c.name}
+                  <select
+                    className="credit-select"
+                    aria-label={`Credits for ${c.name}`}
+                    value={c.credits ?? 1}
+                    onChange={(e) => {
+                      const n = +e.target.value
+                      const upcoming = state.sessions.filter((s) => s.title === c.name && new Date(s.start) > new Date() && s.cost !== n).length
+                      const err = apply((s) => setClassTypeCredits(s, c.id, n))
+                      setCreditMsg(err
+                        ? { ok: false, text: err }
+                        : { ok: true, text: `${c.name} now uses ${credits(n)}${upcoming ? `; ${upcoming} upcoming ${upcoming === 1 ? 'class' : 'classes'} updated` : ''}.` })
+                    }}
+                  >
+                    {Array.from({ length: 11 }, (_, n) => <option key={n} value={n}>{n === 0 ? 'Free' : credits(n)}</option>)}
+                  </select>
                   <button
                     className="link"
                     aria-label={`Remove ${c.name}`}

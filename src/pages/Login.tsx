@@ -26,7 +26,7 @@ const COPY = {
     badge: 'For students',
     title: <>Book your next class. <span className="grad">In seconds.</span></>,
     tag: 'See live spots, book or join a waitlist, and keep track of your packages at every studio you love.',
-    points: [[Lock, 'Private: only you see your bookings'], [CalendarCheck, 'Book and cancel any time'], [Ticket, 'Packages and classes left']] as const,
+    points: [[Lock, 'Private: only you see your bookings'], [CalendarCheck, 'Book and cancel any time'], [Ticket, 'Packages and credits left']] as const,
     login: 'Welcome back',
     signup: 'Create your account',
     signupTab: 'Create account',
