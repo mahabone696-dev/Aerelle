@@ -22,7 +22,7 @@ beforeEach(async () => {
     const db = ctx.firestore()
     for (const [sid, owner] of [[A, 'ownerA'], [B, 'ownerB']]) {
       await setDoc(doc(db, `studios/${sid}`), { id: sid, slug: sid, name: sid, ownerUids: [owner] })
-      await setDoc(doc(db, `studios/${sid}/sessions/s1`), { id: 's1', capacity: 2, booked: ['b1'], waitlist: [] })
+      await setDoc(doc(db, `studios/${sid}/sessions/s1`), { id: 's1', capacity: 2, cost: 1, booked: ['b1'], waitlist: [] })
       await setDoc(doc(db, `studios/${sid}/members/alice`), { id: 'alice', email: 'alice@x.test', role: 'member' })
       await setDoc(doc(db, `studios/${sid}/bookings/b1`), { id: 'b1', userId: 'alice', sessionId: 's1', status: 'booked' })
       await setDoc(doc(db, `studios/${sid}/packages/p1`), { id: 'p1', userId: 'alice', total: 10, remaining: 9, orderId: 'o1' })
@@ -204,6 +204,25 @@ describe('members', () => {
     it('cannot spend by pointing at someone else’s or an already-booked booking', async () => {
       // b1 is already a confirmed (not newly created, not waitlisted) booking, so it can't justify a new spend.
       await assertFails(updateDoc(doc(as('alice'), `studios/${A}/packages/p1`), { remaining: 8, spendFor: 'b1' }))
+    })
+    it('claiming a freed waitlist spot must spend a credit; a free-ride claim is refused', async () => {
+      // Put Bob first on the waitlist of a session with an open spot.
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        const db = ctx.firestore()
+        await setDoc(doc(db, `studios/${A}/sessions/s1`), { id: 's1', capacity: 2, cost: 1, booked: [], waitlist: ['bob-w'] })
+        await setDoc(doc(db, `studios/${A}/bookings/bob-w`), { id: 'bob-w', userId: 'bob', sessionId: 's1', status: 'waitlisted' })
+      })
+      const claim = (spend: boolean, credits = 1) => {
+        const db = as('bob')
+        const batch = writeBatch(db)
+        batch.set(doc(db, `studios/${A}/bookings/bob-w`), { id: 'bob-w', userId: 'bob', sessionId: 's1', status: 'booked', packageId: 'bob-p', credits })
+        batch.update(doc(db, `studios/${A}/sessions/s1`), { booked: ['bob-w'], waitlist: [] })
+        if (spend) batch.update(doc(db, `studios/${A}/packages/bob-p`), { remaining: 4, spendFor: 'bob-w' })
+        return batch.commit()
+      }
+      await assertFails(claim(false))        // claim without spending
+      await assertFails(claim(false, 0))     // claim a paid class as "free"
+      await assertSucceeds(claim(true))      // the real claim spends one credit
     })
   })
   it('buying online creates an unpaid order the studio confirms', async () => {

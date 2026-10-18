@@ -55,6 +55,12 @@ service cloud.firestore {
         && getAfter(pkg).data.spendFor == bookingId
         && getAfter(pkg).data.remaining == get(pkg).data.remaining - b.credits;
     }
+    // A booking that takes a confirmed spot: its credits equal the class's cost, and a non-free class spends
+    // exactly that from its package in the same write. Used for both a new booking and a waitlist claim.
+    function confirmedSpend(sid, b, bookingId) {
+      return b.credits == sessionCost(sid, b.sessionId)
+        && (b.credits == 0 || spendsOnCreate(sid, b, bookingId));
+    }
     function validSpend(sid, packageId, bookingId, amount) {
       let p = bookingDoc(sid, bookingId);
       let after = getAfter(p).data;
@@ -135,18 +141,19 @@ service cloud.firestore {
 
       match /bookings/{id} {
         allow read: if isOwner(sid) || (signedIn() && resource.data.userId == uid()) || claimable(sid, resource.data.userId);
-        // A confirmed booking must spend a credit (see packages); a waitlist spot or a free class need not.
+        // A confirmed booking spends a credit at the class's real cost (see packages); a waitlist spot does
+        // not, and a genuinely free (0-credit) class spends nothing. Credits must equal the class's cost, so
+        // nobody can book a paid class "for free" by claiming 0 credits.
         allow create: if isOwner(sid)
           || (signedIn() && request.resource.data.userId == uid()
-              && (request.resource.data.status == 'waitlisted' || request.resource.data.credits == 0
-                  || spendsOnCreate(sid, request.resource.data, id)));
+              && (request.resource.data.status == 'waitlisted' || confirmedSpend(sid, request.resource.data, id)));
         // Members may cancel or leave a waitlist (credits unchanged), or claim a freed spot (waitlisted ->
-        // booked), which spends a credit at the class's real cost. They can't touch credits any other way.
+        // booked), which spends a credit the same way a new booking does. No other credit change is allowed.
         allow update: if isOwner(sid)
           || (signedIn() && resource.data.userId == uid() && unchanged('userId') && unchanged('sessionId') && unchanged('attendance')
               && (unchanged('credits')
                   || (resource.data.status == 'waitlisted' && request.resource.data.status == 'booked'
-                      && request.resource.data.credits == sessionCost(sid, resource.data.sessionId))))
+                      && confirmedSpend(sid, request.resource.data, id))))
           || isClaim(sid);
         allow delete: if isOwner(sid);
       }
