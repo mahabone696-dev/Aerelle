@@ -98,6 +98,12 @@ export interface MemberPackage {
   purchasedAt: string
   expiresAt: string
   orderId: string
+  /**
+   * The booking that caused the last credit change, so the security rules can check a member's own credit
+   * writes against a real booking: spendFor for a deduction, refundFrom for a return. Not shown in the UI.
+   */
+  spendFor?: string
+  refundFrom?: string
 }
 
 export interface Order {
@@ -240,11 +246,19 @@ const getSession = (state: State, sessionId: string) => {
   return session
 }
 
-/** Credits a confirmed spot took (bookings made before credits were recorded used the class's cost). */
-const spent = (b: Booking, session: Session) => b.credits ?? session.cost
+/** Credits a confirmed spot took. Bookings made before credits were recorded count as the historical 1. */
+const spent = (b: Booking, _session: Session) => b.credits ?? 1
 
 const adjustPackage = (pkgs: MemberPackage[], id: string | undefined, delta: number) =>
   pkgs.map((p) => (p.id === id ? { ...p, remaining: p.remaining + delta } : p))
+
+/** Deduct `amount` credits for a booking, tagging the package so the rules can verify the spend. */
+const spendPackage = (pkgs: MemberPackage[], id: string | undefined, amount: number, bookingId: string) =>
+  pkgs.map((p) => (p.id === id ? { ...p, remaining: p.remaining - amount, spendFor: bookingId } : p))
+
+/** Return `amount` credits from a cancelled booking, tagging the package so the rules can verify the refund. */
+const refundPackage = (pkgs: MemberPackage[], id: string | undefined, amount: number, bookingId: string) =>
+  pkgs.map((p) => (p.id === id ? { ...p, remaining: p.remaining + amount, refundFrom: bookingId } : p))
 
 // ---------- Booking ----------
 
@@ -270,7 +284,8 @@ export function book(state: State, userId: string, sessionId: string, now = new 
   }
   return {
     ...state,
-    memberPackages: full ? state.memberPackages : adjustPackage(state.memberPackages, pkg.id, -session.cost),
+    // A free class (0 credits) and a waitlist spot leave the package untouched.
+    memberPackages: full || session.cost === 0 ? state.memberPackages : spendPackage(state.memberPackages, pkg.id, session.cost, booking.id),
     bookings: [...state.bookings, booking],
   }
 }
@@ -295,10 +310,11 @@ export function cancel(state: State, userId: string, sessionId: string, now = ne
   }
 
   const refunded = isFreeCancel(state, session, now)
+  const amount = spent(booking, session)
   const next: State = {
     ...state,
-    memberPackages: refunded
-      ? adjustPackage(state.memberPackages, booking.packageId, spent(booking, session))
+    memberPackages: refunded && amount > 0
+      ? refundPackage(state.memberPackages, booking.packageId, amount, booking.id)
       : state.memberPackages,
     bookings: state.bookings.map((b) =>
       b.id === booking.id
@@ -341,7 +357,7 @@ export function claimWaitlistSpot(state: State, userId: string, sessionId: strin
   if (!pkg) throw new BookingError(noPackageMessage(state, userId, session, now))
   return {
     ...state,
-    memberPackages: adjustPackage(state.memberPackages, pkg.id, -session.cost),
+    memberPackages: session.cost === 0 ? state.memberPackages : spendPackage(state.memberPackages, pkg.id, session.cost, entry.id),
     bookings: state.bookings.map((b) => (b.id === entry.id ? { ...b, status: 'booked', packageId: pkg.id, credits: session.cost } : b)),
   }
 }

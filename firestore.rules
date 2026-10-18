@@ -43,6 +43,42 @@ service cloud.firestore {
       return changed().hasOnly(['userId']) && request.resource.data.userId == uid() && claimable(sid, resource.data.userId);
     }
 
+    // Credits a member can spend or get back are tied to a real booking of theirs, so they can never give
+    // themselves credits. A spend needs a booking being confirmed for this package in the same write; a
+    // refund needs one of their bookings being cancelled in the same write; each for exactly its own credits.
+    function bookingDoc(sid, bookingId) { return /databases/$(database)/documents/studios/$(sid)/bookings/$(bookingId); }
+    function sessionCost(sid, sessionId) { return get(/databases/$(database)/documents/studios/$(sid)/sessions/$(sessionId)).data.cost; }
+    // The package named by a new booking is reduced by exactly that booking's credits, in the same write.
+    function spendsOnCreate(sid, b, bookingId) {
+      let pkg = /databases/$(database)/documents/studios/$(sid)/packages/$(b.packageId);
+      return exists(pkg) && get(pkg).data.userId == uid()
+        && getAfter(pkg).data.spendFor == bookingId
+        && getAfter(pkg).data.remaining == get(pkg).data.remaining - b.credits;
+    }
+    function validSpend(sid, packageId, bookingId, amount) {
+      let p = bookingDoc(sid, bookingId);
+      let after = getAfter(p).data;
+      return after.userId == uid() && after.status == 'booked' && after.packageId == packageId
+        && after.get('credits', -1) == amount
+        && (!exists(p) || get(p).data.status == 'waitlisted'); // newly booked, or promoted from the waitlist
+    }
+    function validRefund(sid, bookingId, amount) {
+      let p = bookingDoc(sid, bookingId);
+      return exists(p) && get(p).data.userId == uid() && get(p).data.status == 'booked' // was a confirmed spot
+        && getAfter(p).data.status == 'cancelled' && getAfter(p).data.get('credits', 1) == amount; // now cancelled
+    }
+    // A member's own change to a package's remaining credits: either a verified spend or a verified refund.
+    function memberCreditChange(sid, packageId) {
+      let before = resource.data.remaining;
+      let after = request.resource.data.remaining;
+      return after >= 0 && after <= resource.data.total && (
+        (changed().hasOnly(['remaining', 'spendFor']) && after < before
+          && validSpend(sid, packageId, request.resource.data.spendFor, before - after))
+        || (changed().hasOnly(['remaining', 'refundFrom']) && after > before
+          && validRefund(sid, request.resource.data.refundFrom, after - before))
+      );
+    }
+
     match /accounts/{accountId} {
       allow read, write: if signedIn() && uid() == accountId;
     }
@@ -99,9 +135,18 @@ service cloud.firestore {
 
       match /bookings/{id} {
         allow read: if isOwner(sid) || (signedIn() && resource.data.userId == uid()) || claimable(sid, resource.data.userId);
-        allow create: if isOwner(sid) || (signedIn() && request.resource.data.userId == uid());
+        // A confirmed booking must spend a credit (see packages); a waitlist spot or a free class need not.
+        allow create: if isOwner(sid)
+          || (signedIn() && request.resource.data.userId == uid()
+              && (request.resource.data.status == 'waitlisted' || request.resource.data.credits == 0
+                  || spendsOnCreate(sid, request.resource.data, id)));
+        // Members may cancel or leave a waitlist (credits unchanged), or claim a freed spot (waitlisted ->
+        // booked), which spends a credit at the class's real cost. They can't touch credits any other way.
         allow update: if isOwner(sid)
-          || (signedIn() && resource.data.userId == uid() && unchanged('userId') && unchanged('sessionId') && unchanged('attendance') && unchanged('credits'))
+          || (signedIn() && resource.data.userId == uid() && unchanged('userId') && unchanged('sessionId') && unchanged('attendance')
+              && (unchanged('credits')
+                  || (resource.data.status == 'waitlisted' && request.resource.data.status == 'booked'
+                      && request.resource.data.credits == sessionCost(sid, resource.data.sessionId))))
           || isClaim(sid);
         allow delete: if isOwner(sid);
       }
@@ -114,8 +159,7 @@ service cloud.firestore {
           || (signedIn() && request.resource.data.userId == uid() && request.resource.data.remaining == request.resource.data.total
               && newUnpaidOrderOf(sid, request.resource.data.orderId));
         allow update: if isOwner(sid)
-          || (signedIn() && resource.data.userId == uid() && changed().hasOnly(['remaining'])
-              && request.resource.data.remaining >= 0 && request.resource.data.remaining <= resource.data.total)
+          || (signedIn() && resource.data.userId == uid() && memberCreditChange(sid, id))
           || isClaim(sid);
         allow delete: if isOwner(sid);
       }

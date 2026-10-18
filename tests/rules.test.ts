@@ -26,6 +26,7 @@ beforeEach(async () => {
       await setDoc(doc(db, `studios/${sid}/members/alice`), { id: 'alice', email: 'alice@x.test', role: 'member' })
       await setDoc(doc(db, `studios/${sid}/bookings/b1`), { id: 'b1', userId: 'alice', sessionId: 's1', status: 'booked' })
       await setDoc(doc(db, `studios/${sid}/packages/p1`), { id: 'p1', userId: 'alice', total: 10, remaining: 9, orderId: 'o1' })
+      await setDoc(doc(db, `studios/${sid}/packages/bob-p`), { id: 'bob-p', userId: 'bob', total: 5, remaining: 5, orderId: 'bob-o' })
       await setDoc(doc(db, `studios/${sid}/orders/o1`), { id: 'o1', userId: 'alice', paid: true, source: 'Online', net: 100 })
       await setDoc(doc(db, `studios/${sid}/promos/pr`), { id: 'pr', code: 'TEN', uses: 0, active: true })
       // Someone the studio added at the desk, not signed up yet.
@@ -111,8 +112,12 @@ describe('members', () => {
   // Bob books: his booking and the timetable change are saved together.
   const bobBooks = (db: ReturnType<typeof as>, status: string, list: 'booked' | 'waitlist', value: string[], bookingId = 'bob-b') => {
     const batch = writeBatch(db)
-    batch.set(doc(db, `studios/${A}/bookings/${bookingId}`), { id: bookingId, userId: 'bob', sessionId: 's1', status })
+    const booking: Record<string, unknown> = { id: bookingId, userId: 'bob', sessionId: 's1', status }
+    if (status === 'booked') { booking.packageId = 'bob-p'; booking.credits = 1 }
+    batch.set(doc(db, `studios/${A}/bookings/${bookingId}`), booking)
     batch.update(doc(db, `studios/${A}/sessions/s1`), { [list]: value })
+    // A confirmed spot spends one credit from Bob's package, in the same write.
+    if (status === 'booked') batch.update(doc(db, `studios/${A}/packages/bob-p`), { remaining: 4, spendFor: bookingId })
     return batch.commit()
   }
   it('can take a spot for themselves within capacity', async () => {
@@ -142,8 +147,64 @@ describe('members', () => {
     await assertFails(updateDoc(doc(as('alice'), `studios/${A}/packages/p1`), { remaining: 11 }))
     await assertFails(updateDoc(doc(as('alice'), `studios/${A}/packages/p1`), { total: 100, remaining: 100 }))
     await assertFails(setDoc(doc(as('alice'), `studios/${A}/packages/free`), { id: 'free', userId: 'alice', total: 50, remaining: 50, orderId: 'nope' }))
-    await assertSucceeds(updateDoc(doc(as('alice'), `studios/${A}/packages/p1`), { remaining: 8 }))
+    // A bare change to remaining, not tied to a booking in the same write, is refused either way.
+    await assertFails(updateDoc(doc(as('alice'), `studios/${A}/packages/p1`), { remaining: 8 }))
+    await assertFails(updateDoc(doc(as('alice'), `studios/${A}/packages/p1`), { remaining: 10 }))
     await assertFails(updateDoc(doc(as('alice'), `studios/${A}/bookings/b1`), { credits: 9 }))
+  })
+
+  // Credits can only move with a real booking: a spend needs a booking being confirmed in the same write,
+  // a refund needs one being cancelled. Members can never hand themselves credits.
+  describe('credit conservation', () => {
+    const spendBatch = (remaining: number, spendFor = 'a-b2', credits = 1) => {
+      const db = as('alice')
+      const batch = writeBatch(db)
+      batch.set(doc(db, `studios/${A}/bookings/a-b2`), { id: 'a-b2', userId: 'alice', sessionId: 's1', status: 'booked', packageId: 'p1', credits })
+      batch.update(doc(db, `studios/${A}/sessions/s1`), { booked: ['b1', 'a-b2'] })
+      batch.update(doc(db, `studios/${A}/packages/p1`), { remaining, spendFor })
+      return batch.commit()
+    }
+    it('a confirmed booking that spends exactly its credits is allowed', async () => {
+      await assertSucceeds(spendBatch(8))
+    })
+    it('a confirmed booking that does not spend (package untouched) is refused', async () => {
+      const db = as('alice')
+      const batch = writeBatch(db)
+      batch.set(doc(db, `studios/${A}/bookings/a-b2`), { id: 'a-b2', userId: 'alice', sessionId: 's1', status: 'booked', packageId: 'p1', credits: 1 })
+      batch.update(doc(db, `studios/${A}/sessions/s1`), { booked: ['b1', 'a-b2'] })
+      await assertFails(batch.commit())
+    })
+    it('a spend that deducts fewer credits than the booking claims is refused', async () => {
+      await assertFails(spendBatch(9)) // booking says 1 credit, package unchanged
+    })
+    it('refunding a cancelled booking returns exactly its credits', async () => {
+      const db = as('alice')
+      const batch = writeBatch(db)
+      batch.update(doc(db, `studios/${A}/bookings/b1`), { status: 'cancelled' })
+      batch.update(doc(db, `studios/${A}/sessions/s1`), { booked: [] })
+      batch.update(doc(db, `studios/${A}/packages/p1`), { remaining: 10, refundFrom: 'b1' })
+      await assertSucceeds(batch.commit())
+    })
+    it('a refund larger than the booking spent is refused', async () => {
+      await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `studios/${A}/packages/p1`), { remaining: 8 }))
+      const db = as('alice')
+      const batch = writeBatch(db)
+      batch.update(doc(db, `studios/${A}/bookings/b1`), { status: 'cancelled' })
+      batch.update(doc(db, `studios/${A}/sessions/s1`), { booked: [] })
+      batch.update(doc(db, `studios/${A}/packages/p1`), { remaining: 10, refundFrom: 'b1' }) // +2, but b1 spent 1
+      await assertFails(batch.commit())
+    })
+    it('a refund from a booking that is already cancelled (replay) is refused', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), `studios/${A}/bookings/b1`), { status: 'cancelled' })
+        await updateDoc(doc(ctx.firestore(), `studios/${A}/packages/p1`), { remaining: 9 })
+      })
+      await assertFails(updateDoc(doc(as('alice'), `studios/${A}/packages/p1`), { remaining: 10, refundFrom: 'b1' }))
+    })
+    it('cannot spend by pointing at someone else’s or an already-booked booking', async () => {
+      // b1 is already a confirmed (not newly created, not waitlisted) booking, so it can't justify a new spend.
+      await assertFails(updateDoc(doc(as('alice'), `studios/${A}/packages/p1`), { remaining: 8, spendFor: 'b1' }))
+    })
   })
   it('buying online creates an unpaid order the studio confirms', async () => {
     const db = as('alice')
