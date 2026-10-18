@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { Megaphone } from 'lucide-react'
 import { usePlatform, useStore } from '../lib/store'
 import { BookingError, credits, groupsOf, newId, setClassTypeCredits, type Staff, type Studio } from '../lib/model'
 
@@ -9,6 +10,7 @@ export function Settings() {
         <h1>Settings</h1>
       </header>
       <StudioForm />
+      <BannerSettings />
       <DuitNowSettings />
       <ClassTypes />
       <StaffList />
@@ -112,6 +114,42 @@ export function compressQr(file: File): Promise<string> {
  * DuitNow QR payments. The studio uploads the QR its bank gave it; members pay to it at checkout and the
  * studio confirms each payment once it shows in its bank account. Aerelle never handles the money.
  */
+/** A short notice the studio can show at the top of its public booking page (holiday hours, a promo, etc.). */
+function BannerSettings() {
+  const { state, apply } = useStore()
+  const [text, setText] = useState(state.studio.bannerText ?? '')
+  const [active, setActive] = useState(!!state.studio.bannerActive)
+  const [saved, setSaved] = useState<string | null>(null)
+  function save(e: FormEvent) {
+    e.preventDefault()
+    const on = active && !!text.trim()
+    setSaved(apply((s) => ({ ...s, studio: { ...s.studio, bannerText: text.trim(), bannerActive: on } })) ?? (on ? 'Banner is showing on your booking page.' : 'Saved. Banner is hidden.'))
+  }
+  return (
+    <>
+      <h2>Announcement banner</h2>
+      <p className="muted small">Show a short notice at the top of your booking page — a holiday closure, a new class, or an offer.</p>
+      <form className="card form-grid" onSubmit={save}>
+        <label className="full">
+          Message
+          <input value={text} maxLength={160} onChange={(e) => { setText(e.target.value); setSaved(null) }} placeholder="e.g. Closed 25 Dec. Happy holidays!" />
+        </label>
+        {text.trim() && (
+          <div className="full studio-banner preview"><Megaphone size={16} /> <span>{text}</span></div>
+        )}
+        <label className="check full">
+          <input type="checkbox" checked={active} onChange={(e) => { setActive(e.target.checked); setSaved(null) }} />
+          Show it on my booking page
+        </label>
+        <div className="full actions">
+          <button className="btn primary">Save banner</button>
+          {saved && <span className="muted small" role="status">{saved}</span>}
+        </div>
+      </form>
+    </>
+  )
+}
+
 function DuitNowSettings() {
   const { state, apply } = useStore()
   const { loadPaymentQr, savePaymentQr } = usePlatform()

@@ -23,6 +23,9 @@ export interface Studio {
   duitnowEnabled?: boolean
   /** Account name shown next to the QR, so members can check they're paying the right account. */
   duitnowName?: string
+  /** A short notice shown at the top of the public booking page while turned on. */
+  bannerText?: string
+  bannerActive?: boolean
 }
 
 /** A class type belongs to a group; packages unlock groups (e.g. a Reformer pack can't book Mat classes). */
@@ -64,7 +67,12 @@ export interface Session {
   capacity: number
   cost: number // credits deducted from a package
   seriesId?: string
+  /** A group class (default) or a 1:1 appointment slot; appointments are booked privately, capacity 1. */
+  kind?: 'class' | 'appointment'
 }
+
+/** A 1:1 appointment slot, booked the same way a class is (credits, package eligibility, cancellation). */
+export const isAppointment = (s: Session) => s.kind === 'appointment'
 
 export interface PackageOption {
   id: string

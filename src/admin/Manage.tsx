@@ -216,7 +216,9 @@ function NewClass({ onCreate, onClose }: { onCreate: (draft: SessionDraft, weeks
     durationMin: 60,
     capacity: CAPACITY[first?.group] ?? 10,
     cost: first?.credits ?? 1,
+    kind: 'class' as 'class' | 'appointment',
   })
+  const appt = form.kind === 'appointment'
   const [weeks, setWeeks] = useState(1)
   const [error, setError] = useState<string | null>(null)
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }))
@@ -231,17 +233,30 @@ function NewClass({ onCreate, onClose }: { onCreate: (draft: SessionDraft, weeks
   return (
     <form className="card form-card" onSubmit={submit}>
       <div className="form-card-head">
-        <h2 className="flush">New class</h2>
+        <h2 className="flush">{appt ? 'New appointment slot' : 'New class'}</h2>
         <button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><X size={18} /></button>
       </div>
       <div className="form-grid">
         <label className="span2">
-          Class
+          Type
+          <select
+            value={form.kind}
+            onChange={(e) => {
+              const kind = e.target.value as 'class' | 'appointment'
+              setForm((f) => ({ ...f, kind, capacity: kind === 'appointment' ? 1 : CAPACITY[f.group] ?? 10 }))
+            }}
+          >
+            <option value="class">Group class</option>
+            <option value="appointment">1:1 appointment</option>
+          </select>
+        </label>
+        <label className="span2">
+          {appt ? 'Session' : 'Class'}
           <select
             value={form.title}
             onChange={(e) => {
               const ct = state.classTypes.find((c) => c.name === e.target.value)!
-              setForm((f) => ({ ...f, title: ct.name, group: ct.group, capacity: CAPACITY[ct.group] ?? f.capacity, cost: ct.credits ?? 1 }))
+              setForm((f) => ({ ...f, title: ct.name, group: ct.group, capacity: f.kind === 'appointment' ? 1 : CAPACITY[ct.group] ?? f.capacity, cost: ct.credits ?? 1 }))
             }}
           >
             {state.classTypes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
@@ -255,7 +270,7 @@ function NewClass({ onCreate, onClose }: { onCreate: (draft: SessionDraft, weeks
         </label>
         <label>Starts<input type="datetime-local" value={form.start} onChange={(e) => set('start', e.target.value)} required /></label>
         <label>Minutes<input type="number" min={5} value={form.durationMin} onChange={(e) => set('durationMin', +e.target.value)} /></label>
-        <label>Capacity<input type="number" min={1} value={form.capacity} onChange={(e) => set('capacity', +e.target.value)} /></label>
+        {!appt && <label>Capacity<input type="number" min={1} value={form.capacity} onChange={(e) => set('capacity', +e.target.value)} /></label>}
         <label>Credits per booking<input type="number" min={0} value={form.cost} onChange={(e) => set('cost', +e.target.value)} /></label>
         <label>Location<input value={form.room} onChange={(e) => set('room', e.target.value)} /></label>
         <label>
@@ -266,9 +281,10 @@ function NewClass({ onCreate, onClose }: { onCreate: (draft: SessionDraft, weeks
           </select>
         </label>
       </div>
+      {appt && <p className="muted tiny">Appointments seat one member. Members book them from the Appointments tab using a package that covers {form.group || 'this'}.</p>}
       {error && <p className="error">{error}</p>}
       <div className="actions">
-        <button className="btn primary">{weeks > 1 ? `Publish ${weeks} classes` : 'Publish class'}</button>
+        <button className="btn primary">{weeks > 1 ? `Publish ${weeks} ${appt ? 'slots' : 'classes'}` : `Publish ${appt ? 'appointment' : 'class'}`}</button>
         <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
       </div>
     </form>

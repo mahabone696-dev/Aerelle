@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react'
 import { useStore } from '../lib/store'
-import { averageRating, book, credits, cancel, groupsOf, packageFor, spotsLeft, userBooking, waitlist, type Session } from '../lib/model'
+import { averageRating, book, credits, cancel, groupsOf, isAppointment, packageFor, spotsLeft, userBooking, waitlist, type Session } from '../lib/model'
 import { dayKey, fmtDay, fmtTime, plural, sameDay, startOfDay } from '../lib/format'
 import { navigate } from '../lib/router'
 import { Stars } from '../ui'
@@ -32,13 +32,17 @@ export function Schedule() {
   const [group, setGroup] = useState(ALL)
   const [instructor, setInstructor] = useState(ALL)
   const [room, setRoom] = useState(ALL)
+  const [tab, setTab] = useState<'class' | 'appointment'>('class')
   const [showFilters, setShowFilters] = useState(false)
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string; buy?: boolean } | null>(null)
 
-  const upcoming = useMemo(
+  const future = useMemo(
     () => state.sessions.filter((s) => new Date(s.start).getTime() + s.durationMin * 60_000 > today.getTime()),
     [state.sessions, today],
   )
+  // Appointments get their own tab, shown only when the studio offers any.
+  const hasAppointments = future.some((s) => s.kind === 'appointment')
+  const upcoming = future.filter((s) => (tab === 'appointment' ? s.kind === 'appointment' : s.kind !== 'appointment'))
   const groups = groupsOf(state).filter((g) => upcoming.some((s) => s.group === g))
   const instructors = [...new Set(upcoming.map((s) => s.instructor))].sort()
   const rooms = [...new Set(upcoming.map((s) => s.room))].sort()
@@ -106,11 +110,26 @@ export function Schedule() {
   return (
     <section className="book-page">
       <header className="page-head">
-        <h1>Classes</h1>
+        <h1>{tab === 'appointment' ? 'Appointments' : 'Classes'}</h1>
         <p className="muted">
-          {state.studio.name} · {state.studio.location}. Cancel at least {state.studio.cancelHours} hours before class to get your credits back.
+          {state.studio.name} · {state.studio.location}. Cancel at least {state.studio.cancelHours} hours before {tab === 'appointment' ? 'your appointment' : 'class'} to get your credits back.
         </p>
       </header>
+
+      {hasAppointments && (
+        <div className="tabs book-tabs" role="tablist" aria-label="What to book">
+          {(['class', 'appointment'] as const).map((k) => (
+            <button
+              key={k}
+              role="tab"
+              aria-selected={tab === k}
+              onClick={() => { setTab(k); setGroup(ALL); setInstructor(ALL); setRoom(ALL); setSpan(7) }}
+            >
+              {k === 'class' ? 'Classes' : 'Appointments'}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="book-toolbar card">
         <button className="btn sm filter-toggle" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>
@@ -219,7 +238,9 @@ function SessionRow({ s, now, onAct }: { s: Session; now: Date; onAct: (s: Sessi
       </div>
       <div className="cta">
         <span className={`spots ${left === 0 ? 'full' : left <= 2 ? 'low' : ''}`}>
-          {left === 0 ? `Full${queue.length ? ` · ${queue.length} waiting` : ''}` : `${plural(left, 'spot')} left`}
+          {isAppointment(s)
+            ? left === 0 ? `Booked${queue.length ? ` · ${queue.length} waiting` : ''}` : 'Available'
+            : left === 0 ? `Full${queue.length ? ` · ${queue.length} waiting` : ''}` : `${plural(left, 'spot')} left`}
         </span>
         {start <= now ? (
           <button className="btn" disabled>Started</button>

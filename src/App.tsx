@@ -2,7 +2,7 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   BarChart3, Bell, CalendarDays, CalendarCheck, Check, ChevronDown, ChevronsUpDown, Compass, LayoutDashboard, LogOut, Menu,
-  KeyRound, Layers, UserRound, Package, Plus, Receipt, RotateCcw, Search, Settings as SettingsIcon, Star, Tag, Ticket, Users, X,
+  KeyRound, Layers, Megaphone, UserRound, Package, Plus, Receipt, RotateCcw, Search, Settings as SettingsIcon, Star, Tag, Ticket, Users, X,
 } from 'lucide-react'
 import { StudioScope, usePlatform, useStore } from './lib/store'
 import { averageRating, canRate, classesLeft, type Role } from './lib/model'
@@ -610,11 +610,24 @@ function PublicShell({ route }: { route: Route }) {
         </div>
       </header>
       <main className="member-content" key={route.full}>
+        <StudioBanner />
         {current?.render()}
       </main>
       <footer className="public-foot">
         <a href="#/"><Logo size={18} /> Powered by <strong>Aerelle</strong></a>
       </footer>
+    </div>
+  )
+}
+
+/** The studio's announcement, shown at the top of the public and member booking pages when turned on. */
+function StudioBanner() {
+  const { state } = useStore()
+  if (!state.studio.bannerActive || !state.studio.bannerText?.trim()) return null
+  return (
+    <div className="studio-banner" role="status">
+      <Megaphone size={16} aria-hidden="true" />
+      <span>{state.studio.bannerText}</span>
     </div>
   )
 }
@@ -666,6 +679,7 @@ function MemberShell({ route }: { route: Route }) {
         </div>
       </header>
       <main className="member-content" key={route.full}>
+        <StudioBanner />
         {current?.render()}
       </main>
     </div>

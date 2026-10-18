@@ -92,6 +92,61 @@ export function payrollReport(s: State, r: Range) {
   return { header: ['Instructor', 'Classes taught', 'By group', 'Members attended', 'Avg rating'], rows, totals: { classes: taught.length } }
 }
 
+/**
+ * Active and past memberships/packages bought in the range: how many credits each holds, has used, and
+ * has left, with the money taken. Mirrors Vibefam's Memberships report.
+ */
+export function membershipReport(s: State, r: Range) {
+  const now = Date.now()
+  const net = (orderId: string) => s.orders.find((o) => o.id === orderId)?.net ?? 0
+  const pkgs = s.memberPackages.filter((p) => within(p.purchasedAt, r)).sort((a, b) => b.purchasedAt.localeCompare(a.purchasedAt))
+  const status = (p: State['memberPackages'][number]) =>
+    new Date(p.expiresAt).getTime() <= now ? 'Expired' : p.remaining === 0 ? 'Used up' : 'Active'
+  return {
+    header: ['Member', 'Package', 'Purchased', 'Expires', 'Price', 'Total credits', 'Used', 'Left', 'Status'],
+    rows: pkgs.map((p) => [
+      userName(s, p.userId), p.name, d(p.purchasedAt), d(p.expiresAt), net(p.orderId),
+      p.total, p.total - p.remaining, p.remaining, status(p),
+    ]),
+    totals: {
+      packages: pkgs.length,
+      revenue: pkgs.reduce((n, p) => n + net(p.orderId), 0),
+      creditsLeft: pkgs.reduce((n, p) => n + p.remaining, 0),
+    },
+  }
+}
+
+/**
+ * Value earned per class, by spreading each package's price across its credits and attributing it to the
+ * classes those credits were spent on. Mirrors Vibefam's Revenue report (recognised when the class happens).
+ */
+export function revenueReport(s: State, r: Range) {
+  const pkgById = new Map(s.memberPackages.map((p) => [p.id, p]))
+  const net = (orderId: string) => s.orders.find((o) => o.id === orderId)?.net ?? 0
+  // Price of one credit on the package a booking drew from (0 when the package is unknown or free).
+  const creditValue = (packageId?: string) => {
+    const p = packageId ? pkgById.get(packageId) : undefined
+    return p && p.total > 0 ? net(p.orderId) / p.total : 0
+  }
+  const rows: (string | number)[][] = []
+  let value = 0
+  let credits = 0
+  for (const x of s.sessions.filter((y) => within(y.start, r)).sort((a, b) => a.start.localeCompare(b.start))) {
+    for (const b of s.bookings.filter((y) => y.sessionId === x.id && y.status === 'booked')) {
+      const used = b.credits ?? x.cost
+      const v = Math.round(creditValue(b.packageId) * used)
+      value += v
+      credits += used
+      rows.push([d(x.start), t(x.start), x.title, x.instructor, userName(s, b.userId), used, v])
+    }
+  }
+  return {
+    header: ['Date', 'Time', 'Class', 'Instructor', 'Member', 'Credits', 'Value'],
+    rows,
+    totals: { bookings: rows.length, credits, value },
+  }
+}
+
 export function packageReport(s: State, r: Range) {
   const orders = s.orders.filter((o) => within(o.createdAt, r))
   const names = [...new Set(orders.map((o) => o.name))]

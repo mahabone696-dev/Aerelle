@@ -42,6 +42,8 @@ const toStudio = (d: StudioDoc): Studio => ({
   ...(Object.fromEntries(STUDIO_FIELDS.map((k) => [k, d[k] ?? ''])) as unknown as Studio),
   ...(d.duitnowEnabled ? { duitnowEnabled: true } : {}),
   ...(d.duitnowName ? { duitnowName: d.duitnowName } : {}),
+  ...(d.bannerActive ? { bannerActive: true } : {}),
+  ...(d.bannerText ? { bannerText: d.bannerText } : {}),
 })
 const strip = <T,>(data: DocumentData, drop: string[] = []): T => {
   const out = { ...data }

@@ -51,6 +51,19 @@ const s = seedState(new Date())
     }
   }
 }
+// A 1:1 appointment slot (Mat group, so the demo member's Mat package can book it) for appointment tests.
+{
+  const start = new Date(Date.now() + 2 * 86_400_000)
+  start.setHours(9, 0, 0, 0)
+  const mat = s.classTypes.find((c) => c.group === 'Mat')
+  s.sessions.push({
+    id: 'test-appt-1', title: mat ? `Private ${mat.name}` : 'Private session', group: mat?.group ?? 'Mat',
+    instructor: s.staff.find((x) => x.role === 'Instructor')?.name ?? 'Instructor', room: s.studio.location,
+    start: start.toISOString(), durationMin: 50, capacity: 1, cost: 1, kind: 'appointment',
+  })
+}
+// Show an announcement banner so its display can be checked.
+s.studio = { ...s.studio, bannerText: 'New Reformer classes added for the new year!', bannerActive: true }
 const sid = s.studio.id
 // Logins (password demo1234) whose uid matches the demo records.
 for (const [localId, email, displayName] of [['u-owner', 'owner@aerelle.test', 'Studio Owner'], ['u-demo', 'member@aerelle.test', 'Alex Morgan']]) {

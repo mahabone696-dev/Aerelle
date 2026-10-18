@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useStore } from '../lib/store'
-import { bookingReport, cancellationReport, packageReport, payrollReport, salesReport, type Range } from '../lib/reports'
+import { bookingReport, cancellationReport, membershipReport, packageReport, payrollReport, revenueReport, salesReport, type Range } from '../lib/reports'
 import { downloadCsv, money, startOfDay } from '../lib/format'
 
-const TABS = ['Sales', 'Packages', 'Bookings', 'Cancellations', 'Instructor payroll'] as const
+const TABS = ['Sales', 'Revenue', 'Memberships', 'Packages', 'Bookings', 'Cancellations', 'Instructor payroll'] as const
 type Tab = (typeof TABS)[number]
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -28,6 +28,8 @@ export function Reports() {
 
   const report =
     tab === 'Sales' ? salesReport(state, range)
+    : tab === 'Revenue' ? revenueReport(state, range)
+    : tab === 'Memberships' ? membershipReport(state, range)
     : tab === 'Packages' ? packageReport(state, range)
     : tab === 'Bookings' ? bookingReport(state, range)
     : tab === 'Cancellations' ? cancellationReport(state, range)
@@ -37,13 +39,21 @@ export function Reports() {
     const t = report.totals as Record<string, number>
     switch (tab) {
       case 'Sales': return [['Orders', String(t.orders)], ['Gross', money(cur, t.gross)], ['Discounts', money(cur, t.discounts)], ['Collected', money(cur, t.collected)], ['Outstanding', money(cur, t.outstanding)]]
+      case 'Revenue': return [['Attended bookings', String(t.bookings)], ['Credits used', String(t.credits)], ['Value earned', money(cur, t.value)]]
+      case 'Memberships': return [['Packages', String(t.packages)], ['Revenue', money(cur, t.revenue)], ['Credits still unused', String(t.creditsLeft)]]
       case 'Packages': return [['Packages sold', String(t.sold)]]
       case 'Bookings': return [['Classes', String(t.classes)], ['Spots booked', String(t.booked)], ['Occupancy', `${t.occupancy}%`]]
       case 'Cancellations': return [['Cancellations', String(t.total)], ['Late', String(t.late)]]
       default: return [['Classes taught', String(t.classes)]]
     }
   })()
-  const moneyCols = new Set(tab === 'Sales' ? [7, 8, 9] : tab === 'Packages' ? [2] : [])
+  const moneyCols = new Set(
+    tab === 'Sales' ? [7, 8, 9]
+    : tab === 'Revenue' ? [6]
+    : tab === 'Memberships' ? [4]
+    : tab === 'Packages' ? [2]
+    : [],
+  )
 
   return (
     <section>

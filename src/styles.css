@@ -1481,3 +1481,16 @@ body { background: #f7fbfe; }
   font: inherit; font-size: 0.8rem; padding: 0.1rem 0.35rem; border-radius: 999px; width: auto; min-height: 0;
   border: 1px solid rgb(59 143 240 / 0.3); background: #fff; color: var(--navy);
 }
+
+/* Announcement banner */
+.studio-banner {
+  display: flex; align-items: center; gap: 0.55rem; margin: 0 0 1rem;
+  padding: 0.7rem 1rem; border-radius: 12px; font-weight: 600; font-size: 0.92rem;
+  color: var(--navy); background: linear-gradient(90deg, rgb(46 197 211 / 0.16), rgb(123 109 242 / 0.16));
+  border: 1px solid rgb(59 143 240 / 0.25);
+}
+.studio-banner svg { flex: none; color: #3b8ff0; }
+.studio-banner.preview { margin: 0; }
+
+/* Classes / Appointments tabs on the booking page */
+.book-tabs { max-width: 320px; margin-bottom: 0.9rem; }

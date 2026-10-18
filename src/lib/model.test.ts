@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  addSession, book, canRate, claimWaitlistSpot, cancel, classesLeft, markAttendance, markOrderPaid, noPackageMessage, setClassTypeCredits, packageFor, paymentReference, purchase, quote, rate,
-  removeSession, savePromo, spotsLeft, type PackageOption, type Session, type State,
+  addSession, book, canRate, claimWaitlistSpot, cancel, classesLeft, isAppointment, markAttendance, markOrderPaid, noPackageMessage, setClassTypeCredits, packageFor, paymentReference, purchase, quote, rate,
+  removeSession, savePromo, spotsLeft, userBooking, type PackageOption, type Session, type State,
 } from './model'
-import { bookingReport, cancellationReport, payrollReport, salesReport } from './reports'
+import { bookingReport, cancellationReport, membershipReport, payrollReport, revenueReport, salesReport } from './reports'
 import { seedState } from './seed'
 
 const NOW = new Date('2026-10-12T08:00:00Z')
@@ -81,6 +81,19 @@ describe('credits', () => {
     expect(noPackageMessage(s, 'u2', s.sessions.find((x) => x.id === 'ref')!, NOW)).toMatch(/need a package that covers Reformer/)
     s = cancel(s, 'u1', 'future', NOW)
     expect(left(s, 'u1')).toBe(2)
+  })
+
+  it('an appointment slot books like a class, uses credits, and is full after one booking', () => {
+    let s = world(1)
+    s = { ...s, sessions: s.sessions.map((x) => (x.id === 'future' ? { ...x, kind: 'appointment' as const, capacity: 1 } : x)) }
+    const appt = s.sessions.find((x) => x.id === 'future')!
+    expect(isAppointment(appt)).toBe(true)
+    s = book(s, 'u1', 'future', NOW)
+    expect(left(s, 'u1')).toBe(1) // one Mat credit used (started with 2)
+    expect(spotsLeft(s, s.sessions.find((x) => x.id === 'future')!)).toBe(0)
+    // A second member can't take the same 1:1 slot (goes to waitlist, no credit spent).
+    s = book(s, 'u2', 'future', NOW)
+    expect(userBooking(s, 'u2', 'future')!.status).toBe('waitlisted')
   })
 
   it('changing a class type’s credits updates upcoming classes; existing bookings get back what they paid', () => {
@@ -237,6 +250,18 @@ describe('reports', () => {
     expect(bookingReport(s, range).rows.find((r) => r[2] === 'Mat class' && r[5] === 1)).toBeTruthy()
     expect(cancellationReport(s, range).totals).toEqual({ total: 1, late: 1 })
     expect(payrollReport(s, range).header[0]).toBe('Instructor')
+  })
+
+  it('memberships show credits used and left; revenue is spread across credits', () => {
+    // u0 bought a 2-credit Mat pack and a Reformer pack (see world()); book one Mat class.
+    const s = book(world(2), 'u0', 'soon', NOW)
+    const mem = membershipReport(s, range)
+    const mat = mem.rows.find((r) => r[1] === 'mat2')
+    expect(mem.totals.packages).toBeGreaterThan(0)
+    expect(mat && mat[6]).toBe(1) // one credit used
+    const rev = revenueReport(s, range)
+    expect(rev.totals.bookings).toBe(1)
+    expect(rev.totals.value).toBeGreaterThanOrEqual(0)
   })
 })
 
